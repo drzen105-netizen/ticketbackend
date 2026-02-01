@@ -215,23 +215,26 @@
         document.getElementById('api-url').textContent = API_URL;
         
         let scanner = null;
-        let currentMode = 'entry';
+        let currentMode = 'entry'; // 'entry' ou 'exit'
         let stats = { entries: 0, exits: 0, duplicates: 0, invalids: 0 };
         let isProcessing = false; 
 
-        // --- 1. SYNCHRONISATION EXACTE AVEC TON JSON ---
+        // --- 1. SYNCHRONISATION ET CALCUL DES SORTIES ---
         async function refreshStats() {
             try {
                 const response = await fetch(`${API_URL}/api/stats`);
                 const data = await response.json();
                 
-                // MAPPING SELON TON JSON : {"total":800,"scanned":2,"duplicates":2,...}
+                // On utilise tes clés JSON réelles
                 stats.entries = data.scanned || 0; 
                 stats.duplicates = data.duplicates || 0;
-                // Si ton dashboard gère les sorties, ajuste ici, sinon on laisse 0
-                stats.exits = data.currently_inside ? (data.scanned - data.currently_inside) : 0;
                 
-                // Mise à jour de l'affichage
+                // CALCUL LOGIQUE : Si on a 10 scannés au total et 8 à l'intérieur, c'est que 2 sont sortis.
+                if (data.currently_inside !== undefined) {
+                    stats.exits = (data.scanned || 0) - (data.currently_inside || 0);
+                }
+                
+                // Mise à jour de l'interface
                 document.getElementById('stat-entries').textContent = stats.entries;
                 document.getElementById('stat-exits').textContent = stats.exits;
                 document.getElementById('stat-duplicates').textContent = stats.duplicates;
@@ -239,85 +242,100 @@
                 if(document.getElementById('ticket-count')) {
                     document.getElementById('ticket-count').textContent = data.total || 0;
                 }
-
-                console.log("Synchro réussie :", data);
+                
+                // Optionnel : afficher le nombre actuel à l'intérieur quelque part
+                console.log("Présents :", data.currently_inside);
             } catch (err) {
                 console.error("Erreur de synchro :", err);
             }
         }
 
-        // --- 2. FLASH VISUEL ---
-        function flashBackground(type) {
-            const body = document.body;
-            const originalBg = "#1a1a2e"; 
-            let flashColor = (type === 'success') ? "#00ff88" : (type === 'warning') ? "#ffaa00" : "#ff4444";
-
-            body.style.transition = "background 0.2s";
-            body.style.backgroundColor = flashColor;
-            body.style.color = "#000"; 
-            
-            setTimeout(() => {
-                body.style.backgroundColor = originalBg;
-                body.style.color = "white";
-            }, 2000);
-        }
-
-        // --- 3. LOGIQUE DE SCAN ---
-        async function onScanSuccess(decodedText) {
-            if (isProcessing) return;
-            isProcessing = true;
-            if (scanner) { try { scanner.pause(true); } catch(e) {} }
-            
-            await validateTicket(decodedText);
-
-            setTimeout(() => {
-                isProcessing = false;
-                if (scanner) { try { scanner.resume(); } catch(e) {} }
-            }, 2500); 
-        }
-
+        // --- 2. LOGIQUE DE SCAN (ENTRÉE vs SORTIE) ---
         async function validateTicket(code) {
             try {
                 const response = await fetch(`${API_URL}/api/scan`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ code: code, action: currentMode })
+                    // On envoie bien l'action 'entry' ou 'exit' au serveur
+                    body: JSON.stringify({ 
+                        code: code, 
+                        action: currentMode,
+                        scanner_id: 'mobile-scanner' 
+                    })
                 });
                 
                 const result = await response.json();
                 
                 if (result.success) {
-                    showResult('success', `VALIDE`);
+                    const msg = (currentMode === 'entry') ? "ENTRÉE OK" : "SORTIE OK";
+                    showResult('success', `✓ ${msg}`);
                     flashBackground('success');
                     playSound('success');
                 } else if (result.duplicate) {
-                    showResult('warning', `DÉJÀ SCANNÉ`);
+                    showResult('warning', `⚠️ DÉJÀ SCANNÉ`);
                     flashBackground('warning');
                     playSound('warning');
                 } else {
-                    showResult('error', `REFUSÉ`);
+                    showResult('error', result.error || "REFUSÉ");
                     flashBackground('error');
                     stats.invalids++;
                     document.getElementById('stat-invalids').textContent = stats.invalids;
                     playSound('error');
                 }
 
-                // IMPORTANT : On recharge les vrais chiffres après chaque scan
-                await refreshStats();
+                await refreshStats(); // Mise à jour immédiate des chiffres
 
             } catch (err) {
-                showResult('error', `ERREUR RÉSEAU`);
+                showResult('error', "ERREUR RÉSEAU");
             }
         }
 
-        // --- CAMERA CONTROLS ---
+        // --- 3. GESTION DES BOUTONS DE MODE ---
+        document.querySelectorAll('.btn-toggle').forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Design des boutons
+                document.querySelectorAll('.btn-toggle').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                // Changement de mode
+                currentMode = btn.dataset.mode; // Récupère 'entry' ou 'exit'
+                
+                // Mise à jour visuelle du titre du scanner
+                const modeLabel = document.getElementById('scan-mode');
+                if (modeLabel) {
+                    modeLabel.textContent = (currentMode === 'entry') ? 'MODE ENTRÉE' : 'MODE SORTIE';
+                    modeLabel.style.color = (currentMode === 'entry') ? '#00ff88' : '#ff4444';
+                }
+            });
+        });
+
+        // --- FONCTIONS STANDARDS (Flash, Caméra, Son) ---
+        function flashBackground(type) {
+            const body = document.body;
+            const originalBg = "#1a1a2e"; 
+            let flashColor = (type === 'success') ? "#00ff88" : (type === 'warning') ? "#ffaa00" : "#ff4444";
+            body.style.backgroundColor = flashColor;
+            body.style.color = "#000"; 
+            setTimeout(() => { body.style.backgroundColor = originalBg; body.style.color = "white"; }, 2000);
+        }
+
+        async function onScanSuccess(decodedText) {
+            if (isProcessing) return;
+            isProcessing = true;
+            if (scanner) { try { scanner.pause(true); } catch(e) {} }
+            await validateTicket(decodedText);
+            setTimeout(() => {
+                isProcessing = false;
+                if (scanner) { try { scanner.resume(); } catch(e) {} }
+            }, 2000); 
+        }
+
         document.getElementById('start-camera').addEventListener('click', async () => {
             try {
                 scanner = new Html5Qrcode("reader");
                 await scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, onScanSuccess, () => {});
                 document.getElementById('start-camera').classList.add('hidden');
                 document.getElementById('stop-camera').classList.remove('hidden');
-                document.getElementById('camera-status').innerHTML = '<span style="color: #00ff88;">✓ Active</span>';
             } catch (err) { alert(err); }
         });
 
@@ -327,18 +345,17 @@
             document.getElementById('stop-camera').classList.add('hidden');
         });
 
-        // --- HELPERS ---
         function showResult(type, message) {
             const res = document.getElementById('result');
             res.className = `result ${type}`;
             res.innerHTML = message;
             res.classList.remove('hidden');
-            setTimeout(() => res.classList.add('hidden'), 4000);
+            setTimeout(() => res.classList.add('hidden'), 3000);
         }
 
         function playSound(type) {
             try {
-                const ctx = new AudioContext();
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
                 const osc = ctx.createOscillator();
                 const g = ctx.createGain();
                 osc.connect(g); g.connect(ctx.destination);
@@ -348,17 +365,9 @@
             } catch (e) {}
         }
 
-        // --- INIT & AUTO-SYNC ---
-        refreshStats(); // Au chargement
-        setInterval(refreshStats, 30000); // Toutes les 30 sec
-
-        document.querySelectorAll('.btn-toggle').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.btn-toggle').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                currentMode = btn.dataset.mode;
-            });
-        });
+        // INIT
+        refreshStats();
+        setInterval(refreshStats, 30000);
     </script>
 </body>
 </html>
