@@ -2,851 +2,325 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#0f0f23">
-    <title>Scan Concert - Contrôle d'Accès</title>
-    
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scanner Test - Concert</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Space+Mono:wght@400;700&display=swap');
-        
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
         
-        :root {
-            --primary: #00ff88;
-            --danger: #ff0066;
-            --warning: #ffaa00;
-            --bg-dark: #0f0f23;
-            --bg-darker: #05050f;
-            --text-primary: #ffffff;
-            --text-secondary: #a0a0c0;
-        }
-        
         body {
-            font-family: 'Space Mono', monospace;
-            background: var(--bg-darker);
-            color: var(--text-primary);
-            min-height: 100vh;
-            overflow-x: hidden;
-            position: relative;
-        }
-        
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: 
-                linear-gradient(rgba(0, 255, 136, 0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0, 255, 136, 0.03) 1px, transparent 1px);
-            background-size: 50px 50px;
-            pointer-events: none;
-            z-index: 0;
-        }
-        
-        .container {
-            position: relative;
-            z-index: 1;
-            max-width: 600px;
-            margin: 0 auto;
+            font-family: Arial, sans-serif;
+            background: #1a1a2e;
+            color: white;
             padding: 20px;
         }
         
-        header {
-            text-align: center;
-            padding: 30px 0;
-            border-bottom: 2px solid var(--primary);
-            margin-bottom: 30px;
-            position: relative;
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
         }
         
         h1 {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 2.5rem;
-            font-weight: 900;
-            text-transform: uppercase;
-            letter-spacing: 4px;
-            background: linear-gradient(135deg, var(--primary), #00ccff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            animation: pulse 3s ease-in-out infinite;
+            text-align: center;
+            margin-bottom: 20px;
+            color: #00ff88;
         }
         
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.8; }
+        .status {
+            background: #2d2d44;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #00ff88;
         }
         
-        .subtitle {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-            margin-top: 10px;
-            letter-spacing: 2px;
-        }
-        
-        .status-indicator {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: var(--danger);
-            box-shadow: 0 0 10px currentColor;
-        }
-        
-        .status-indicator.online {
-            background: var(--primary);
-        }
-        
-        .scan-area {
-            background: linear-gradient(135deg, rgba(0, 255, 136, 0.1), rgba(0, 204, 255, 0.1));
-            border: 2px solid var(--primary);
-            border-radius: 20px;
-            padding: 30px;
-            margin-bottom: 30px;
-            box-shadow: 0 0 30px rgba(0, 255, 136, 0.2);
-            position: relative;
-            overflow: hidden;
+        .status-item {
+            margin: 5px 0;
+            font-size: 14px;
         }
         
         #video-container {
             position: relative;
             width: 100%;
-            height: 300px;
-            background: var(--bg-dark);
-            border-radius: 15px;
+            background: #000;
+            border-radius: 10px;
             overflow: hidden;
             margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
         
         #qr-video {
             width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        
-        .camera-placeholder {
-            color: var(--text-secondary);
-            text-align: center;
-            padding: 20px;
-        }
-        
-        .scan-overlay {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 200px;
-            height: 200px;
-            border: 3px solid var(--primary);
-            border-radius: 10px;
-            pointer-events: none;
-            display: none;
-        }
-        
-        .scan-overlay.active {
+            height: auto;
             display: block;
         }
         
-        .scan-line {
-            position: absolute;
-            width: 100%;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, var(--primary), transparent);
-            animation: scan 2s linear infinite;
-            box-shadow: 0 0 10px var(--primary);
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
         
-        @keyframes scan {
-            0% { top: 0; }
-            100% { top: 100%; }
-        }
-        
-        .btn {
-            width: 100%;
-            padding: 18px;
-            font-family: 'Orbitron', sans-serif;
-            font-size: 1.1rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 2px;
+        button {
+            padding: 15px;
+            font-size: 16px;
+            font-weight: bold;
             border: none;
-            border-radius: 12px;
+            border-radius: 8px;
             cursor: pointer;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-            margin-bottom: 15px;
-        }
-        
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
+            transition: all 0.3s;
         }
         
         .btn-primary {
-            background: linear-gradient(135deg, var(--primary), #00ccff);
-            color: var(--bg-darker);
-            box-shadow: 0 5px 20px rgba(0, 255, 136, 0.4);
+            background: #00ff88;
+            color: #1a1a2e;
         }
         
-        .btn-primary:hover:not(:disabled) {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(0, 255, 136, 0.6);
+        .btn-primary:hover {
+            background: #00cc6a;
         }
         
         .btn-danger {
-            background: linear-gradient(135deg, var(--danger), #cc0055);
+            background: #ff4444;
             color: white;
-            box-shadow: 0 5px 20px rgba(255, 0, 102, 0.4);
         }
         
-        #manual-input {
-            width: 100%;
+        input {
             padding: 15px;
-            font-family: 'Space Mono', monospace;
-            font-size: 1rem;
-            background: rgba(255, 255, 255, 0.05);
-            border: 2px solid var(--primary);
-            border-radius: 10px;
-            color: var(--text-primary);
+            font-size: 16px;
+            border: 2px solid #00ff88;
+            border-radius: 8px;
+            background: #2d2d44;
+            color: white;
             text-align: center;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 15px;
-        }
-        
-        #manual-input::placeholder {
-            color: var(--text-secondary);
         }
         
         .result {
-            padding: 25px;
-            border-radius: 15px;
-            margin-bottom: 20px;
-            font-weight: bold;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
             text-align: center;
-            display: none;
-            animation: slideIn 0.5s ease;
-        }
-        
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            font-weight: bold;
         }
         
         .result.success {
-            background: linear-gradient(135deg, rgba(0, 255, 136, 0.2), rgba(0, 204, 255, 0.2));
-            border: 2px solid var(--primary);
-            color: var(--primary);
+            background: rgba(0, 255, 136, 0.2);
+            border: 2px solid #00ff88;
         }
         
         .result.error {
-            background: linear-gradient(135deg, rgba(255, 0, 102, 0.2), rgba(204, 0, 85, 0.2));
-            border: 2px solid var(--danger);
-            color: var(--danger);
-        }
-        
-        .result.warning {
-            background: linear-gradient(135deg, rgba(255, 170, 0, 0.2), rgba(255, 136, 0, 0.2));
-            border: 2px solid var(--warning);
-            color: var(--warning);
-        }
-        
-        .ticket-details {
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px solid currentColor;
-            font-size: 0.9rem;
-            font-weight: normal;
-        }
-        
-        .ticket-code {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 1.5rem;
-            margin: 10px 0;
-            letter-spacing: 3px;
-        }
-        
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin-top: 30px;
-        }
-        
-        .stat-card {
-            background: linear-gradient(135deg, rgba(0, 255, 136, 0.1), rgba(0, 204, 255, 0.1));
-            border: 1px solid var(--primary);
-            border-radius: 15px;
-            padding: 20px;
-            text-align: center;
-        }
-        
-        .stat-value {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 2.5rem;
-            font-weight: 900;
-            color: var(--primary);
-            margin-bottom: 5px;
-        }
-        
-        .stat-label {
-            font-size: 0.8rem;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            background: rgba(255, 68, 68, 0.2);
+            border: 2px solid #ff4444;
         }
         
         .hidden {
-            display: none !important;
-        }
-        
-        .toggle-container {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        
-        .toggle-btn {
-            flex: 1;
-            padding: 15px;
-            font-family: 'Orbitron', sans-serif;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            border: 2px solid var(--primary);
-            background: transparent;
-            color: var(--text-secondary);
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .toggle-btn.active {
-            background: var(--primary);
-            color: var(--bg-darker);
-            box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
-        }
-        
-        .debug-info {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid var(--text-secondary);
-            border-radius: 10px;
-            padding: 15px;
-            margin-top: 20px;
-            font-size: 0.85rem;
-            color: var(--text-secondary);
+            display: none;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <header>
-            <div class="status-indicator" id="status-indicator"></div>
-            <h1>⚡ SCAN ⚡</h1>
-            <p class="subtitle">Contrôle d'accès Concert</p>
-        </header>
+        <h1>🎫 Scanner Concert</h1>
         
-        <div class="scan-area">
-            <div id="video-container">
-                <div class="camera-placeholder" id="camera-placeholder">
-                    📷 Cliquez sur "Démarrer le Scan" pour activer la caméra
-                </div>
-                <video id="qr-video" playsinline style="display: none;"></video>
-                <div class="scan-overlay" id="scan-overlay">
-                    <div class="scan-line"></div>
-                </div>
-            </div>
+        <div class="status">
+            <div class="status-item">📍 <strong>API URL:</strong> <span id="api-url"></span></div>
+            <div class="status-item">🔌 <strong>Status API:</strong> <span id="api-status">Test...</span></div>
+            <div class="status-item">📊 <strong>Tickets en DB:</strong> <span id="ticket-count">-</span></div>
+            <div class="status-item">📷 <strong>Caméra:</strong> <span id="camera-status">Inactive</span></div>
+        </div>
+        
+        <div id="video-container" class="hidden">
+            <video id="qr-video" autoplay playsinline></video>
+        </div>
+        
+        <div class="controls">
+            <button id="start-camera" class="btn-primary">📷 Activer la Caméra</button>
+            <button id="stop-camera" class="btn-danger hidden">❌ Arrêter</button>
             
-            <button id="start-scan" class="btn btn-primary">Démarrer le Scan</button>
-            <button id="stop-scan" class="btn btn-danger hidden">Arrêter le Scan</button>
-            
-            <div style="margin: 20px 0; text-align: center; color: var(--text-secondary);">
-                — OU —
-            </div>
-            
-            <input type="text" id="manual-input" placeholder="ENTRER CODE MANUELLEMENT">
-            <button id="manual-validate" class="btn btn-primary">Valider le Code</button>
+            <input type="text" id="manual-code" placeholder="A-1234-XXXXX" maxlength="15">
+            <button id="validate-code" class="btn-primary">✓ Valider Code</button>
         </div>
         
-        <div id="result" class="result"></div>
-        
-        <div class="toggle-container hidden" id="toggle-container">
-            <button class="toggle-btn active" data-action="entry">ENTRÉE</button>
-            <button class="toggle-btn" data-action="exit">SORTIE</button>
-        </div>
-        
-        <div class="stats">
-            <div class="stat-card">
-                <div class="stat-value" id="stat-entries">0</div>
-                <div class="stat-label">Entrées</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="stat-exits">0</div>
-                <div class="stat-label">Sorties</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="stat-duplicates">0</div>
-                <div class="stat-label">Duplicatas</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="stat-invalids">0</div>
-                <div class="stat-label">Invalides</div>
-            </div>
-        </div>
-        
-        <div class="debug-info" id="debug-info">
-            Status: Initialisation...
-        </div>
+        <div id="result" class="result hidden"></div>
     </div>
     
-    <!-- QR Code Scanner Library -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     
     <script>
-        // Configuration - DÉTECTION AUTOMATIQUE DE L'URL
-        const API_URL = window.location.origin; // Utilise l'URL actuelle
+        // Configuration
+        const API_URL = window.location.origin;
+        document.getElementById('api-url').textContent = API_URL;
         
-        console.log('API URL:', API_URL);
-        
-        // État de l'application
+        // Variables
         let scanner = null;
-        let scannerRunning = false;
-        let currentAction = 'entry';
-        let stats = {
-            entries: 0,
-            exits: 0,
-            duplicates: 0,
-            invalids: 0
-        };
+        let stream = null;
         
-        // Éléments DOM
-        const startBtn = document.getElementById('start-scan');
-        const stopBtn = document.getElementById('stop-scan');
+        // Éléments
+        const videoContainer = document.getElementById('video-container');
+        const video = document.getElementById('qr-video');
+        const startBtn = document.getElementById('start-camera');
+        const stopBtn = document.getElementById('stop-camera');
+        const manualInput = document.getElementById('manual-code');
+        const validateBtn = document.getElementById('validate-code');
         const resultDiv = document.getElementById('result');
-        const manualInput = document.getElementById('manual-input');
-        const manualValidateBtn = document.getElementById('manual-validate');
-        const toggleContainer = document.getElementById('toggle-container');
-        const toggleBtns = document.querySelectorAll('.toggle-btn');
-        const statusIndicator = document.getElementById('status-indicator');
-        const debugInfo = document.getElementById('debug-info');
-        const videoElement = document.getElementById('qr-video');
-        const cameraPlaceholder = document.getElementById('camera-placeholder');
-        const scanOverlay = document.getElementById('scan-overlay');
+        const apiStatus = document.getElementById('api-status');
+        const ticketCount = document.getElementById('ticket-count');
+        const cameraStatus = document.getElementById('camera-status');
         
-        // Fonction de debug
-        function updateDebug(message) {
-            console.log(message);
-            debugInfo.textContent = `Status: ${message}`;
+        // Test API au chargement
+        async function testAPI() {
+            try {
+                const response = await fetch(`${API_URL}/api/stats`);
+                const data = await response.json();
+                
+                apiStatus.innerHTML = '<span style="color: #00ff88;">✓ Connecté</span>';
+                ticketCount.textContent = data.total || 0;
+                
+                if (data.total === 0) {
+                    showResult('error', '⚠️ Aucun ticket dans la base ! Importez-les d\'abord.');
+                }
+            } catch (err) {
+                apiStatus.innerHTML = '<span style="color: #ff4444;">✗ Déconnecté</span>';
+                showResult('error', `Erreur: ${err.message}`);
+            }
         }
         
-        // Test de connexion API
-        async function testAPIConnection() {
+        // Démarrer la caméra
+        startBtn.addEventListener('click', async () => {
             try {
-                updateDebug('Test de connexion à l\'API...');
-                const response = await fetch(`${API_URL}/api/stats`, {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json'
+                cameraStatus.textContent = 'Demande d\'accès...';
+                
+                // Méthode 1: getUserMedia direct
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        facingMode: "environment",
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
                     }
                 });
                 
-                if (response.ok) {
-                    statusIndicator.classList.add('online');
-                    updateDebug('✓ Connecté à l\'API');
-                    return true;
-                } else {
-                    updateDebug(`⚠ API répond mais erreur: ${response.status}`);
-                    return false;
-                }
-            } catch (err) {
-                console.error('Erreur connexion API:', err);
-                updateDebug(`✗ Erreur API: ${err.message}`);
-                statusIndicator.classList.remove('online');
-                return false;
-            }
-        }
-        
-        // Initialisation
-        async function init() {
-            updateDebug('Initialisation...');
-            
-            // Test connexion API
-            const apiOk = await testAPIConnection();
-            
-            if (!apiOk) {
-                showResult('warning', 'Mode Hors Ligne', 
-                    'Impossible de se connecter à l\'API. Les scans seront stockés localement.');
-            }
-            
-            // Charger les stats depuis l'API ou localStorage
-            await loadStats();
-            updateStatsDisplay();
-            
-            updateDebug('✓ Prêt');
-        }
-        
-        // Charger les statistiques
-        async function loadStats() {
-            try {
-                const response = await fetch(`${API_URL}/api/stats`);
-                if (response.ok) {
-                    const data = await response.json();
-                    stats.entries = data.scanned || 0;
-                    stats.duplicates = data.duplicates || 0;
-                    stats.invalids = 0; // Calculé localement
-                }
-            } catch (err) {
-                console.log('Stats non disponibles depuis l\'API, utilisation du cache local');
-                const cached = localStorage.getItem('scanner_stats');
-                if (cached) {
-                    stats = JSON.parse(cached);
-                }
-            }
-        }
-        
-        // Démarrage du scanner
-        startBtn.addEventListener('click', async () => {
-            try {
-                updateDebug('Démarrage de la caméra...');
+                video.srcObject = stream;
+                await video.play();
                 
-                // Vérifier les permissions
-                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                    throw new Error('Votre navigateur ne supporte pas l\'accès à la caméra');
-                }
-                
-                scanner = new Html5Qrcode("qr-video");
-                
-                const config = { 
-                    fps: 10,
-                    qrbox: { width: 250, height: 250 },
-                    aspectRatio: 1.0
-                };
-                
-                await scanner.start(
-                    { facingMode: "environment" },
-                    config,
-                    onScanSuccess,
-                    onScanError
-                );
-                
-                scannerRunning = true;
+                videoContainer.classList.remove('hidden');
                 startBtn.classList.add('hidden');
                 stopBtn.classList.remove('hidden');
-                toggleContainer.classList.remove('hidden');
-                cameraPlaceholder.style.display = 'none';
-                videoElement.style.display = 'block';
-                scanOverlay.classList.add('active');
+                cameraStatus.innerHTML = '<span style="color: #00ff88;">✓ Active</span>';
                 
-                updateDebug('✓ Caméra active');
+                // Démarrer le scanner QR
+                scanner = new Html5Qrcode("qr-video");
+                await scanner.start(
+                    { facingMode: "environment" },
+                    { fps: 10, qrbox: 250 },
+                    onScanSuccess,
+                    () => {} // Ignore les erreurs de scan
+                );
                 
             } catch (err) {
                 console.error('Erreur caméra:', err);
-                let errorMsg = err.message;
+                cameraStatus.innerHTML = '<span style="color: #ff4444;">✗ Erreur</span>';
                 
+                let message = 'Erreur caméra: ';
                 if (err.name === 'NotAllowedError') {
-                    errorMsg = 'Autorisation caméra refusée. Vérifiez les paramètres de votre navigateur.';
+                    message += 'Autorisation refusée. Vérifiez les paramètres.';
                 } else if (err.name === 'NotFoundError') {
-                    errorMsg = 'Aucune caméra trouvée sur cet appareil.';
-                } else if (err.name === 'NotReadableError') {
-                    errorMsg = 'La caméra est déjà utilisée par une autre application.';
+                    message += 'Aucune caméra trouvée.';
+                } else {
+                    message += err.message;
                 }
                 
-                showResult('error', 'Erreur Caméra', errorMsg);
-                updateDebug(`✗ ${errorMsg}`);
+                showResult('error', message);
             }
         });
         
-        // Arrêt du scanner
+        // Arrêter la caméra
         stopBtn.addEventListener('click', async () => {
-            if (scanner && scannerRunning) {
+            if (scanner) {
                 await scanner.stop();
-                scannerRunning = false;
-                startBtn.classList.remove('hidden');
-                stopBtn.classList.add('hidden');
-                videoElement.style.display = 'none';
-                cameraPlaceholder.style.display = 'block';
-                scanOverlay.classList.remove('active');
-                updateDebug('Caméra arrêtée');
+                scanner = null;
             }
+            
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            
+            video.srcObject = null;
+            videoContainer.classList.add('hidden');
+            stopBtn.classList.add('hidden');
+            startBtn.classList.remove('hidden');
+            cameraStatus.textContent = 'Inactive';
         });
         
-        // Gestion du scan
-        function onScanSuccess(decodedText) {
-            updateDebug(`QR scanné: ${decodedText}`);
-            validateTicket(decodedText);
-        }
-        
-        function onScanError(error) {
-            // Ignorer les erreurs de scan continues (normal)
+        // Scan réussi
+        function onScanSuccess(code) {
+            validateTicket(code);
         }
         
         // Validation manuelle
-        manualValidateBtn.addEventListener('click', () => {
+        validateBtn.addEventListener('click', () => {
             const code = manualInput.value.trim().toUpperCase();
             if (code) {
-                updateDebug(`Validation manuelle: ${code}`);
                 validateTicket(code);
                 manualInput.value = '';
             }
         });
         
         manualInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                manualValidateBtn.click();
-            }
+            if (e.key === 'Enter') validateBtn.click();
         });
         
-        // Toggle Entrée/Sortie
-        toggleBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                toggleBtns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                currentAction = btn.dataset.action;
-                updateDebug(`Mode: ${currentAction === 'entry' ? 'Entrée' : 'Sortie'}`);
-            });
-        });
-        
-        // Validation du ticket
+        // Valider un ticket
         async function validateTicket(code) {
-            updateDebug(`Validation: ${code}`);
+            console.log('Validation:', code);
             
-            // Format attendu: A-1234-XXXXX
-            const ticketRegex = /^[A-H]-\d{4}-[A-Z]{5}$/;
-            
-            if (!ticketRegex.test(code)) {
-                showResult('error', 'Format invalide', `Le code "${code}" n'est pas au bon format.`);
-                stats.invalids++;
-                updateStatsDisplay();
-                saveStats();
-                playSound('error');
+            // Vérifier format
+            if (!/^[A-H]-\d{4}-[A-Z]{5}$/.test(code)) {
+                showResult('error', `Format invalide: ${code}`);
                 return;
             }
             
-            // Envoyer à l'API
             try {
-                updateDebug('Envoi à l\'API...');
-                
                 const response = await fetch(`${API_URL}/api/scan`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         code: code,
-                        action: currentAction,
-                        scanner_id: 'mobile-scanner',
-                        timestamp: new Date().toISOString()
+                        action: 'entry',
+                        scanner_id: 'test-scanner'
                     })
                 });
                 
                 const result = await response.json();
                 
-                if (response.ok && result.success) {
-                    // Succès
-                    const now = new Date().toLocaleTimeString('fr-FR');
-                    
-                    if (currentAction === 'entry') {
-                        showResult('success', '✓ ENTRÉE AUTORISÉE', 
-                            `<div class="ticket-details">
-                                <div class="ticket-code">${code}</div>
-                                Heure d'entrée: ${now}
-                            </div>`
-                        );
-                        stats.entries++;
-                    } else {
-                        showResult('success', '✓ SORTIE ENREGISTRÉE', 
-                            `<div class="ticket-details">
-                                <div class="ticket-code">${code}</div>
-                                Heure de sortie: ${now}
-                            </div>`
-                        );
-                        stats.exits++;
-                    }
-                    
-                    playSound('success');
-                    updateDebug('✓ Scan enregistré');
-                    
+                if (result.success) {
+                    showResult('success', `✓ ENTRÉE AUTORISÉE<br>${code}`);
                 } else if (result.duplicate) {
-                    // Duplication
-                    showResult('warning', '⚠ DUPLICATION DÉTECTÉE!', 
-                        `<div class="ticket-details">
-                            <div class="ticket-code">${code}</div>
-                            Ce ticket a déjà été scanné.
-                        </div>`
-                    );
-                    stats.duplicates++;
-                    playSound('warning');
-                    updateDebug('⚠ Duplicata');
-                    
+                    showResult('error', `⚠️ DUPLICATA<br>${code}`);
                 } else {
-                    // Erreur
-                    showResult('error', 'TICKET INVALIDE', 
-                        `<div class="ticket-details">
-                            <div class="ticket-code">${code}</div>
-                            ${result.error || 'Ticket non trouvé ou annulé'}
-                        </div>`
-                    );
-                    stats.invalids++;
-                    playSound('error');
-                    updateDebug(`✗ ${result.error}`);
+                    showResult('error', `✗ ${result.error || 'Ticket invalide'}<br>${code}`);
                 }
-                
-                updateStatsDisplay();
-                saveStats();
                 
             } catch (err) {
-                console.error('Erreur API:', err);
-                updateDebug(`✗ Erreur: ${err.message}`);
-                
-                // Mode hors ligne - sauvegarder localement
-                showResult('warning', 'Mode Hors Ligne', 
-                    `Scan enregistré localement. Sera synchronisé quand l'API sera accessible.<br>
-                    <div class="ticket-code">${code}</div>`
-                );
-                
-                // Sauvegarder dans localStorage pour synchro ultérieure
-                saveOfflineScan(code, currentAction);
-                
-                if (currentAction === 'entry') {
-                    stats.entries++;
-                } else {
-                    stats.exits++;
-                }
-                
-                updateStatsDisplay();
-                saveStats();
-                playSound('warning');
+                showResult('error', `Erreur API: ${err.message}`);
             }
         }
         
-        // Sauvegarder un scan hors ligne
-        function saveOfflineScan(code, action) {
-            const offlineScans = JSON.parse(localStorage.getItem('offline_scans') || '[]');
-            offlineScans.push({
-                code: code,
-                action: action,
-                timestamp: new Date().toISOString()
-            });
-            localStorage.setItem('offline_scans', JSON.stringify(offlineScans));
-            updateDebug(`Scan hors ligne sauvegardé (${offlineScans.length} en attente)`);
-        }
-        
-        // Affichage du résultat
-        function showResult(type, title, message) {
+        // Afficher résultat
+        function showResult(type, message) {
             resultDiv.className = `result ${type}`;
-            resultDiv.innerHTML = `<strong>${title}</strong><br>${message}`;
-            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = message;
+            resultDiv.classList.remove('hidden');
             
             setTimeout(() => {
-                resultDiv.style.display = 'none';
+                resultDiv.classList.add('hidden');
             }, 5000);
         }
         
-        // Sons
-        function playSound(type) {
-            try {
-                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-                
-                if (type === 'success') {
-                    oscillator.frequency.value = 800;
-                    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-                    oscillator.start();
-                    oscillator.stop(audioContext.currentTime + 0.1);
-                } else if (type === 'error') {
-                    oscillator.frequency.value = 200;
-                    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-                    oscillator.start();
-                    oscillator.stop(audioContext.currentTime + 0.3);
-                } else if (type === 'warning') {
-                    oscillator.frequency.value = 500;
-                    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-                    oscillator.start();
-                    oscillator.stop(audioContext.currentTime + 0.2);
-                }
-            } catch (err) {
-                console.log('Son non disponible:', err);
-            }
-        }
-        
-        // Mise à jour des statistiques
-        function updateStatsDisplay() {
-            document.getElementById('stat-entries').textContent = stats.entries;
-            document.getElementById('stat-exits').textContent = stats.exits;
-            document.getElementById('stat-duplicates').textContent = stats.duplicates;
-            document.getElementById('stat-invalids').textContent = stats.invalids;
-        }
-        
-        function saveStats() {
-            localStorage.setItem('scanner_stats', JSON.stringify(stats));
-        }
-        
-        // Initialisation au chargement
-        init();
-        
-        // Service Worker pour PWA
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js').catch(err => {
-                console.log('Service Worker registration failed:', err);
-            });
-        }
-        
-        // Synchronisation périodique des scans hors ligne
-        setInterval(async () => {
-            const offlineScans = JSON.parse(localStorage.getItem('offline_scans') || '[]');
-            if (offlineScans.length > 0) {
-                updateDebug(`Tentative de synchro (${offlineScans.length} scans en attente)...`);
-                
-                for (let i = 0; i < offlineScans.length; i++) {
-                    try {
-                        const scan = offlineScans[i];
-                        const response = await fetch(`${API_URL}/api/scan`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(scan)
-                        });
-                        
-                        if (response.ok) {
-                            offlineScans.splice(i, 1);
-                            i--;
-                            updateDebug(`✓ Scan synchronisé (${offlineScans.length} restants)`);
-                        }
-                    } catch (err) {
-                        // Continuer avec les autres
-                    }
-                }
-                
-                localStorage.setItem('offline_scans', JSON.stringify(offlineScans));
-            }
-        }, 30000); // Toutes les 30 secondes
+        // Init
+        testAPI();
     </script>
 </body>
 </html>
