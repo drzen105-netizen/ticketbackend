@@ -727,218 +727,105 @@
     </div>
     
     <script>
-        // Chargement de la base de données
+        // --- CONFIGURATION ---
+        const API_URL = window.location.origin; // Utilise l'URL actuelle (Render)
         let ticketsDB = [];
-        let scansHistory = [];
-        
-        // Initialisation
-        async function init() {
-            loadDatabase();
-            updateAllStats();
-            renderTicketsTable();
-            setupEventListeners();
-            startAutoRefresh();
-        }
-        
-        function loadDatabase() {
-            // Charger depuis localStorage ou API
-            const stored = localStorage.getItem('ticketsDB');
-            if (stored) {
-                ticketsDB = JSON.parse(stored);
-            } else {
-                // Charger depuis le fichier JSON généré
-                fetch('/api/tickets')
-                    .then(res => res.json())
-                    .then(data => {
-                        ticketsDB = data;
-                        localStorage.setItem('ticketsDB', JSON.stringify(data));
-                        updateAllStats();
-                        renderTicketsTable();
-                    });
-            }
-            
-            const storedScans = localStorage.getItem('scansHistory');
-            if (storedScans) {
-                scansHistory = JSON.parse(storedScans);
-            }
-        }
-        
-        function updateAllStats() {
-            const totalTickets = ticketsDB.length;
-            const scannedTickets = ticketsDB.filter(t => t.scanned).length;
-            const duplicates = ticketsDB.filter(t => t.scan_count > 1).length;
-            const currentlyInside = ticketsDB.filter(t => t.scanned && !t.exited).length;
-            
-            document.getElementById('total-tickets').textContent = totalTickets;
-            document.getElementById('scanned-tickets').textContent = scannedTickets;
-            document.getElementById('scan-percent').textContent = 
-                `${((scannedTickets / totalTickets) * 100).toFixed(1)}%`;
-            document.getElementById('duplicates').textContent = duplicates;
-            document.getElementById('currently-inside').textContent = currentlyInside;
-            
-            // Analytiques
-            document.getElementById('usage-rate').textContent = 
-                `${((scannedTickets / totalTickets) * 100).toFixed(1)}%`;
-            
-            updateSeriesStats();
-            updateRecentScans();
-        }
-        
-        function updateSeriesStats() {
-            const series = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-            const tbody = document.getElementById('series-stats-body');
-            tbody.innerHTML = '';
-            
-            series.forEach(s => {
-                const total = ticketsDB.filter(t => t.prefix === s).length;
-                const scanned = ticketsDB.filter(t => t.prefix === s && t.scanned).length;
-                const duplicates = ticketsDB.filter(t => t.prefix === s && t.scan_count > 1).length;
-                const rate = ((scanned / total) * 100).toFixed(1);
+        let filteredTickets = [];
+
+        // --- CHARGEMENT DES DONNÉES ---
+        async function loadDatabase() {
+            try {
+                const response = await fetch(`${API_URL}/api/tickets`);
+                if (!response.ok) throw new Error('Erreur réseau');
                 
-                const row = `
-                    <tr>
-                        <td><span class="badge badge-primary">Série ${s}</span></td>
-                        <td>${total}</td>
-                        <td>${scanned}</td>
-                        <td><strong>${rate}%</strong></td>
-                        <td>${duplicates}</td>
-                    </tr>
-                `;
-                tbody.innerHTML += row;
-            });
-        }
-        
-        function updateRecentScans() {
-            const tbody = document.getElementById('recent-scans-body');
-            const recentScans = scansHistory.slice(-10).reverse();
-            
-            if (recentScans.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="5" style="text-align: center; color: var(--gray);">
-                            Aucun scan enregistré pour le moment
-                        </td>
-                    </tr>
-                `;
-                return;
+                ticketsDB = await response.json();
+                filteredTickets = [...ticketsDB];
+                
+                renderTable();
+                updateAllStats();
+                console.log("✓ Données synchronisées avec SQLite");
+            } catch (error) {
+                console.error("Erreur de chargement:", error);
+                // Optionnel : Afficher une alerte sur l'interface
             }
-            
-            tbody.innerHTML = recentScans.map(scan => `
-                <tr>
-                    <td><span class="code-badge">${scan.code}</span></td>
-                    <td><span class="badge badge-${scan.action === 'entry' ? 'success' : 'warning'}">
-                        ${scan.action === 'entry' ? 'ENTRÉE' : 'SORTIE'}
-                    </span></td>
-                    <td>${new Date(scan.timestamp).toLocaleString('fr-FR')}</td>
-                    <td><span class="badge badge-success">✓ Valide</span></td>
-                    <td><span class="badge badge-primary">${scan.code.split('-')[0]}</span></td>
-                </tr>
-            `).join('');
         }
-        
-        function renderTicketsTable() {
-            const tbody = document.getElementById('tickets-table-body');
+
+        // --- RENDU DU TABLEAU ---
+        function renderTable() {
+            const tbody = document.getElementById('tickets-body');
+            if (!tbody) return;
             tbody.innerHTML = '';
             
-            ticketsDB.forEach(ticket => {
-                const row = `
-                    <tr>
-                        <td>#${ticket.ticket_id}</td>
-                        <td><span class="code-badge">${ticket.code}</span></td>
-                        <td><span class="badge badge-primary">${ticket.prefix}</span></td>
-                        <td><span class="badge badge-${ticket.status === 'valid' ? 'success' : 'danger'}">
-                            ${ticket.status}
-                        </span></td>
-                        <td>${ticket.scan_count}</td>
-                        <td>${ticket.last_scan_time ? new Date(ticket.last_scan_time).toLocaleString('fr-FR') : '-'}</td>
-                        <td class="actions">
-                            <button class="action-btn" onclick="editTicket('${ticket.code}')">✏️</button>
-                            <button class="action-btn" onclick="viewDetails('${ticket.code}')">👁️</button>
-                        </td>
-                    </tr>
+            filteredTickets.forEach(ticket => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><span class="badge-status">${ticket.ticket_id}</span></td>
+                    <td><code style="color: var(--primary)">${ticket.code}</code></td>
+                    <td>${ticket.prefix}</td>
+                    <td>
+                        <span class="status-pill status-${ticket.scanned ? 'scanned' : 'pending'}">
+                            ${ticket.scanned ? 'SCANNÉ' : 'EN ATTENTE'}
+                        </span>
+                    </td>
+                    <td>${ticket.scan_count || 0}</td>
+                    <td>${ticket.last_scan_time ? new Date(ticket.last_scan_time).toLocaleString() : '-'}</td>
+                    <td class="actions">
+                        <button class="btn-action" onclick="viewDetails('${ticket.code}')">👁️</button>
+                    </td>
                 `;
-                tbody.innerHTML += row;
+                tbody.appendChild(tr);
             });
         }
-        
-        function setupEventListeners() {
-            // Navigation
-            document.querySelectorAll('.nav-item').forEach(item => {
-                item.addEventListener('click', () => {
-                    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-                    item.classList.add('active');
-                    
-                    const section = item.dataset.section;
-                    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-                    document.getElementById(section).classList.add('active');
-                });
-            });
-            
-            // Refresh
-            document.getElementById('refresh-data').addEventListener('click', () => {
-                loadDatabase();
-                updateAllStats();
-                renderTicketsTable();
-            });
-            
-            // Export
-            document.getElementById('export-json').addEventListener('click', exportJSON);
-            document.getElementById('export-csv').addEventListener('click', exportCSV);
-            
-            // Modal
-            document.getElementById('close-modal').addEventListener('click', () => {
-                document.getElementById('edit-modal').classList.remove('active');
+
+        // --- STATISTIQUES ---
+        function updateAllStats() {
+            const total = ticketsDB.length;
+            const scanned = ticketsDB.filter(t => t.scanned == 1).length;
+            const pending = total - scanned;
+            const rate = total > 0 ? Math.round((scanned / total) * 100) : 0;
+
+            if(document.getElementById('stat-total')) document.getElementById('stat-total').textContent = total;
+            if(document.getElementById('stat-scanned')) document.getElementById('stat-scanned').textContent = scanned;
+            if(document.getElementById('stat-pending')) document.getElementById('stat-pending').textContent = pending;
+            if(document.getElementById('stat-rate')) document.getElementById('stat-rate').textContent = rate + '%';
+        }
+
+        // --- FILTRES & RECHERCHE ---
+        const searchInput = document.getElementById('search-input');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase();
+                filteredTickets = ticketsDB.filter(t => 
+                    t.code.toLowerCase().includes(term) || 
+                    t.prefix.toLowerCase().includes(term)
+                );
+                renderTable();
             });
         }
-        
-        function editTicket(code) {
-            const ticket = ticketsDB.find(t => t.code === code);
-            if (ticket) {
-                document.getElementById('edit-code').value = ticket.code;
-                document.getElementById('edit-status').value = ticket.status;
-                document.getElementById('edit-modal').classList.add('active');
+
+        function filterStatus(status) {
+            if (status === 'all') {
+                filteredTickets = [...ticketsDB];
+            } else if (status === 'scanned') {
+                filteredTickets = ticketsDB.filter(t => t.scanned == 1);
+            } else {
+                filteredTickets = ticketsDB.filter(t => t.scanned == 0);
             }
+            renderTable();
         }
-        
+
+        // --- INITIALISATION ---
+        function init() {
+            loadDatabase();
+            // Rafraîchissement automatique toutes les 10 secondes
+            setInterval(loadDatabase, 10000);
+        }
+
         function viewDetails(code) {
             const ticket = ticketsDB.find(t => t.code === code);
-            alert(JSON.stringify(ticket, null, 2));
+            alert(`Détails Ticket ${code}\nStatut: ${ticket.scanned ? 'Scanné' : 'Valide'}\nScans: ${ticket.scan_count}`);
         }
-        
-        function exportJSON() {
-            const data = JSON.stringify(ticketsDB, null, 2);
-            downloadFile(data, 'tickets_export.json', 'application/json');
-        }
-        
-        function exportCSV() {
-            const headers = Object.keys(ticketsDB[0]);
-            const csv = [
-                headers.join(','),
-                ...ticketsDB.map(row => 
-                    headers.map(field => JSON.stringify(row[field])).join(',')
-                )
-            ].join('\n');
-            
-            downloadFile(csv, 'tickets_export.csv', 'text/csv');
-        }
-        
-        function downloadFile(content, filename, type) {
-            const blob = new Blob([content], { type });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            a.click();
-        }
-        
-        function startAutoRefresh() {
-            setInterval(() => {
-                loadDatabase();
-                updateAllStats();
-            }, 30000); // Refresh toutes les 30 secondes
-        }
-        
-        // Initialisation
+
         init();
     </script>
 </body>
