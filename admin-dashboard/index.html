@@ -39,6 +39,16 @@
             min-height: 100vh;
         }
         
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            
+            .sidebar {
+                display: none;
+            }
+        }
+        
         /* Sidebar */
         .sidebar {
             background: var(--dark);
@@ -88,6 +98,8 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 40px;
+            flex-wrap: wrap;
+            gap: 20px;
         }
         
         h1 {
@@ -98,6 +110,7 @@
         .header-actions {
             display: flex;
             gap: 15px;
+            flex-wrap: wrap;
         }
         
         /* Statistiques */
@@ -160,6 +173,28 @@
             color: var(--success);
         }
         
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--gray);
+        }
+        
+        .spinner {
+            border: 3px solid var(--border);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
         /* Boutons */
         .btn {
             padding: 12px 24px;
@@ -171,12 +206,17 @@
             font-family: 'Inter', sans-serif;
         }
         
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
         .btn-primary {
             background: var(--primary);
             color: white;
         }
         
-        .btn-primary:hover {
+        .btn-primary:hover:not(:disabled) {
             background: #4f46e5;
             transform: translateY(-2px);
         }
@@ -206,6 +246,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
         }
         
         .table-title {
@@ -221,6 +263,7 @@
             color: var(--light);
             font-family: 'Inter', sans-serif;
             width: 300px;
+            max-width: 100%;
         }
         
         table {
@@ -293,122 +336,23 @@
             letter-spacing: 1px;
         }
         
-        .actions {
-            display: flex;
-            gap: 10px;
-        }
-        
-        .action-btn {
-            padding: 6px 12px;
-            border: 1px solid var(--border);
-            background: transparent;
-            color: var(--light);
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.85rem;
-            transition: all 0.2s ease;
-        }
-        
-        .action-btn:hover {
-            background: var(--primary);
-            border-color: var(--primary);
-        }
-        
-        /* Filtres */
-        .filters {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 30px;
-            flex-wrap: wrap;
-        }
-        
-        .filter-btn {
-            padding: 10px 20px;
-            background: var(--dark);
-            border: 1px solid var(--border);
-            color: var(--gray);
+        /* Error */
+        .error-message {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--danger);
             border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .filter-btn.active {
-            background: var(--primary);
-            border-color: var(--primary);
-            color: white;
-        }
-        
-        /* Modal */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .modal.active {
-            display: flex;
-        }
-        
-        .modal-content {
-            background: var(--dark);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 30px;
-            max-width: 600px;
-            width: 90%;
-        }
-        
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 25px;
-        }
-        
-        .modal-title {
-            font-size: 1.5rem;
-            font-weight: 700;
-        }
-        
-        .close-btn {
-            background: none;
-            border: none;
-            color: var(--gray);
-            font-size: 1.5rem;
-            cursor: pointer;
-        }
-        
-        .form-group {
+            padding: 15px;
             margin-bottom: 20px;
+            color: var(--danger);
         }
         
-        .form-label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 500;
-            color: var(--gray);
-        }
-        
-        .form-input {
-            width: 100%;
-            padding: 12px;
-            background: var(--darker);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            color: var(--light);
-            font-family: 'Inter', sans-serif;
-        }
-        
-        .form-input:focus {
-            outline: none;
-            border-color: var(--primary);
+        .success-message {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid var(--success);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            color: var(--success);
         }
         
         /* Section cachée */
@@ -420,11 +364,22 @@
             display: block;
         }
         
-        /* Export */
-        .export-buttons {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-online {
+            background: var(--success);
+            box-shadow: 0 0 10px var(--success);
+        }
+        
+        .status-offline {
+            background: var(--danger);
+            box-shadow: 0 0 10px var(--danger);
         }
     </style>
 </head>
@@ -443,9 +398,6 @@
                 <div class="nav-item" data-section="scans">
                     📱 Historique Scans
                 </div>
-                <div class="nav-item" data-section="analytics">
-                    📈 Analytiques
-                </div>
                 <div class="nav-item" data-section="settings">
                     ⚙️ Paramètres
                 </div>
@@ -457,119 +409,105 @@
             <!-- Section: Vue d'ensemble -->
             <section class="section active" id="overview">
                 <div class="header">
-                    <h1>Vue d'ensemble</h1>
+                    <h1>
+                        <span class="status-indicator status-offline" id="api-status"></span>
+                        Vue d'ensemble
+                    </h1>
                     <div class="header-actions">
                         <button class="btn btn-primary" id="refresh-data">🔄 Actualiser</button>
                         <button class="btn btn-success" id="export-data">📥 Exporter</button>
                     </div>
                 </div>
                 
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-header">
-                            <span class="stat-label">Total Tickets</span>
-                            <div class="stat-icon primary">🎫</div>
-                        </div>
-                        <div class="stat-value" id="total-tickets">800</div>
-                        <div class="stat-change">100% générés</div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-header">
-                            <span class="stat-label">Scans Réussis</span>
-                            <div class="stat-icon success">✓</div>
-                        </div>
-                        <div class="stat-value" id="scanned-tickets">0</div>
-                        <div class="stat-change" id="scan-percent">0%</div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-header">
-                            <span class="stat-label">Duplicatas</span>
-                            <div class="stat-icon warning">⚠️</div>
-                        </div>
-                        <div class="stat-value" id="duplicates">0</div>
-                        <div class="stat-change">À surveiller</div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-header">
-                            <span class="stat-label">Présents</span>
-                            <div class="stat-icon success">👥</div>
-                        </div>
-                        <div class="stat-value" id="currently-inside">0</div>
-                        <div class="stat-change">En temps réel</div>
-                    </div>
+                <div id="error-container"></div>
+                
+                <div id="loading-stats" class="loading">
+                    <div class="spinner"></div>
+                    <p>Chargement des données...</p>
                 </div>
                 
-                <div class="table-container">
-                    <div class="table-header">
-                        <h2 class="table-title">Derniers Scans</h2>
-                        <input type="text" class="search-box" placeholder="Rechercher un code...">
+                <div id="stats-content" style="display: none;">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <span class="stat-label">Total Tickets</span>
+                                <div class="stat-icon primary">🎫</div>
+                            </div>
+                            <div class="stat-value" id="total-tickets">-</div>
+                            <div class="stat-change">Base de données</div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <span class="stat-label">Scans Réussis</span>
+                                <div class="stat-icon success">✓</div>
+                            </div>
+                            <div class="stat-value" id="scanned-tickets">-</div>
+                            <div class="stat-change" id="scan-percent">-</div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <span class="stat-label">Duplicatas</span>
+                                <div class="stat-icon warning">⚠️</div>
+                            </div>
+                            <div class="stat-value" id="duplicates">-</div>
+                            <div class="stat-change">À surveiller</div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <span class="stat-label">Présents</span>
+                                <div class="stat-icon success">👥</div>
+                            </div>
+                            <div class="stat-value" id="currently-inside">-</div>
+                            <div class="stat-change">En temps réel</div>
+                        </div>
                     </div>
-                    <table id="recent-scans-table">
-                        <thead>
-                            <tr>
-                                <th>Code Ticket</th>
-                                <th>Action</th>
-                                <th>Date/Heure</th>
-                                <th>Statut</th>
-                                <th>Série</th>
-                            </tr>
-                        </thead>
-                        <tbody id="recent-scans-body">
-                            <tr>
-                                <td colspan="5" style="text-align: center; color: var(--gray);">
-                                    Aucun scan enregistré pour le moment
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h2 class="table-title">Derniers Scans</h2>
+                        </div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Code Ticket</th>
+                                    <th>Action</th>
+                                    <th>Date/Heure</th>
+                                    <th>Statut</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recent-scans-body">
+                                <tr>
+                                    <td colspan="4" style="text-align: center; color: var(--gray);">
+                                        Chargement...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </section>
             
-            <!-- Section: Gestion Tickets -->
+            <!-- Section: Tickets -->
             <section class="section" id="tickets">
                 <div class="header">
                     <h1>Gestion des Tickets</h1>
                     <div class="header-actions">
-                        <button class="btn btn-primary" id="add-ticket">+ Ajouter Ticket</button>
-                        <button class="btn btn-success" id="import-tickets">📤 Importer</button>
+                        <button class="btn btn-primary" id="import-tickets">📤 Importer depuis JSON</button>
                     </div>
                 </div>
                 
-                <div class="filters">
-                    <button class="filter-btn active" data-filter="all">Tous (800)</button>
-                    <button class="filter-btn" data-filter="valid">Valides</button>
-                    <button class="filter-btn" data-filter="scanned">Scannés</button>
-                    <button class="filter-btn" data-filter="invalid">Invalides</button>
-                </div>
-                
-                <div class="table-container">
-                    <div class="table-header">
-                        <h2 class="table-title">Liste des Tickets</h2>
-                        <input type="text" class="search-box" id="ticket-search" placeholder="Rechercher...">
+                <div id="tickets-content">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>Chargement des tickets...</p>
                     </div>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Code</th>
-                                <th>Série</th>
-                                <th>Statut</th>
-                                <th>Scans</th>
-                                <th>Dernier Scan</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tickets-table-body">
-                            <!-- Rempli dynamiquement -->
-                        </tbody>
-                    </table>
                 </div>
             </section>
             
-            <!-- Section: Historique Scans -->
+            <!-- Section: Scans -->
             <section class="section" id="scans">
                 <div class="header">
                     <h1>Historique des Scans</h1>
@@ -578,96 +516,15 @@
                     </div>
                 </div>
                 
-                <div class="export-buttons">
-                    <button class="btn btn-primary" id="export-json">Export JSON</button>
-                    <button class="btn btn-primary" id="export-csv">Export CSV</button>
-                    <button class="btn btn-primary" id="export-excel">Export Excel</button>
-                </div>
-                
-                <div class="table-container">
-                    <div class="table-header">
-                        <h2 class="table-title">Tous les Scans</h2>
-                        <input type="text" class="search-box" placeholder="Filtrer par code...">
+                <div id="scans-content">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>Chargement de l'historique...</p>
                     </div>
-                    <table id="scans-history-table">
-                        <thead>
-                            <tr>
-                                <th>Date/Heure</th>
-                                <th>Code Ticket</th>
-                                <th>Action</th>
-                                <th>Statut</th>
-                                <th>Nb Scans</th>
-                            </tr>
-                        </thead>
-                        <tbody id="scans-table-body">
-                            <!-- Rempli dynamiquement -->
-                        </tbody>
-                    </table>
                 </div>
             </section>
             
-            <!-- Section: Analytiques -->
-            <section class="section" id="analytics">
-                <div class="header">
-                    <h1>Analytiques</h1>
-                </div>
-                
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-header">
-                            <span class="stat-label">Taux d'Utilisation</span>
-                            <div class="stat-icon primary">📊</div>
-                        </div>
-                        <div class="stat-value" id="usage-rate">0%</div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-header">
-                            <span class="stat-label">Série la + Utilisée</span>
-                            <div class="stat-icon success">🏆</div>
-                        </div>
-                        <div class="stat-value" id="top-series">-</div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-header">
-                            <span class="stat-label">Heure de Pointe</span>
-                            <div class="stat-icon warning">⏰</div>
-                        </div>
-                        <div class="stat-value" id="peak-hour">-</div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-header">
-                            <span class="stat-label">Durée Moy. Présence</span>
-                            <div class="stat-icon primary">⌛</div>
-                        </div>
-                        <div class="stat-value" id="avg-duration">-</div>
-                    </div>
-                </div>
-                
-                <div class="table-container">
-                    <div class="table-header">
-                        <h2 class="table-title">Répartition par Série</h2>
-                    </div>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Série</th>
-                                <th>Total Tickets</th>
-                                <th>Scannés</th>
-                                <th>Taux</th>
-                                <th>Duplicatas</th>
-                            </tr>
-                        </thead>
-                        <tbody id="series-stats-body">
-                            <!-- Rempli dynamiquement -->
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-            
-            <!-- Section: Paramètres -->
+            <!-- Section: Settings -->
             <section class="section" id="settings">
                 <div class="header">
                     <h1>Paramètres</h1>
@@ -675,93 +532,244 @@
                 
                 <div class="table-container">
                     <div class="table-header">
-                        <h2 class="table-title">Configuration Système</h2>
+                        <h2 class="table-title">Configuration API</h2>
                     </div>
                     <div style="padding: 30px;">
-                        <div class="form-group">
-                            <label class="form-label">URL de l'API Backend</label>
-                            <input type="text" class="form-input" id="api-url" placeholder="https://votre-api.com">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label class="form-label">Intervalle de Synchronisation (secondes)</label>
-                            <input type="number" class="form-input" id="sync-interval" value="30">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label class="form-label">Activer les Notifications</label>
-                            <input type="checkbox" id="enable-notifications" checked>
-                        </div>
-                        
-                        <button class="btn btn-primary">Sauvegarder</button>
-                        <button class="btn btn-danger">Réinitialiser BD Locale</button>
+                        <p style="margin-bottom: 15px;">
+                            <strong>URL de l'API :</strong> <span id="api-url-display" style="color: var(--primary);"></span>
+                        </p>
+                        <p style="margin-bottom: 15px;">
+                            <strong>Status :</strong> <span id="api-status-text">Vérification...</span>
+                        </p>
+                        <button class="btn btn-primary" id="test-api">Tester la connexion</button>
                     </div>
                 </div>
             </section>
         </main>
     </div>
     
-    <!-- Modal d'édition -->
-    <div class="modal" id="edit-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">Modifier Ticket</h2>
-                <button class="close-btn" id="close-modal">×</button>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Code Ticket</label>
-                <input type="text" class="form-input" id="edit-code" readonly>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Statut</label>
-                <select class="form-input" id="edit-status">
-                    <option value="valid">Valide</option>
-                    <option value="invalid">Invalide</option>
-                    <option value="cancelled">Annulé</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <button class="btn btn-primary" id="save-ticket">Sauvegarder</button>
-            </div>
-        </div>
-    </div>
-    
     <script>
+        // Configuration - Détection automatique de l'URL
         const API_URL = window.location.origin;
-        window.ticketsDB = []; 
-
-        async function loadData() {
-            const res = await fetch(`${API_URL}/api/tickets`);
-            window.ticketsDB = await res.json();
-            renderTable(window.ticketsDB);
+        
+        console.log('Dashboard - API URL:', API_URL);
+        
+        // État
+        let apiConnected = false;
+        
+        // Éléments DOM
+        const apiStatus = document.getElementById('api-status');
+        const apiStatusText = document.getElementById('api-status-text');
+        const errorContainer = document.getElementById('error-container');
+        const loadingStats = document.getElementById('loading-stats');
+        const statsContent = document.getElementById('stats-content');
+        
+        // Afficher l'URL de l'API
+        document.getElementById('api-url-display').textContent = API_URL;
+        
+        // Fonction d'erreur
+        function showError(message) {
+            errorContainer.innerHTML = `
+                <div class="error-message">
+                    <strong>⚠️ Erreur</strong><br>
+                    ${message}
+                </div>
+            `;
         }
-
-        function renderTable(data) {
-            const body = document.getElementById('tickets-body');
-            body.innerHTML = data.map(t => `
-                <tr>
-                    <td>${t.ticket_id}</td>
-                    <td>${t.code}</td>
-                    <td><span class="status-${t.scanned ? 'scanned' : 'valid'}">${t.scanned ? 'SCANNÉ' : 'VALIDE'}</span></td>
-                    <td><button onclick="window.viewDetails('${t.code}')">👁️ Voir</button></td>
-                </tr>
-            `).join('');
+        
+        function showSuccess(message) {
+            errorContainer.innerHTML = `
+                <div class="success-message">
+                    <strong>✓ Succès</strong><br>
+                    ${message}
+                </div>
+            `;
+            setTimeout(() => {
+                errorContainer.innerHTML = '';
+            }, 5000);
         }
-
-        // Rendre les fonctions Globales pour le HTML
-        window.filterStatus = (status) => {
-            if (status === 'all') renderTable(window.ticketsDB);
-            else if (status === 'scanned') renderTable(window.ticketsDB.filter(t => t.scanned));
-            else renderTable(window.ticketsDB.filter(t => !t.scanned));
-        };
-
-        window.viewDetails = (code) => {
-            const t = window.ticketsDB.find(x => x.code === code);
-            alert(`Ticket: ${t.code}\nStatus: ${t.scanned ? 'Déjà passé' : 'En attente'}`);
-        };
-
-        loadData();
-        setInterval(loadData, 5000); // Rafraîchit toutes les 5 secondes
+        
+        // Test de connexion API
+        async function testAPIConnection() {
+            try {
+                console.log('Test connexion API...');
+                const response = await fetch(`${API_URL}/api/stats`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    apiConnected = true;
+                    apiStatus.className = 'status-indicator status-online';
+                    apiStatusText.innerHTML = '<span style="color: var(--success);">✓ Connecté</span>';
+                    console.log('✓ API connectée');
+                    return true;
+                } else {
+                    throw new Error(`API répond avec le code ${response.status}`);
+                }
+            } catch (err) {
+                console.error('Erreur connexion API:', err);
+                apiConnected = false;
+                apiStatus.className = 'status-indicator status-offline';
+                apiStatusText.innerHTML = `<span style="color: var(--danger);">✗ Déconnecté - ${err.message}</span>`;
+                showError(`Impossible de se connecter à l'API: ${err.message}<br><br>
+                    <strong>Solutions possibles:</strong><br>
+                    1. Vérifiez que le serveur backend est démarré<br>
+                    2. Vérifiez l'URL: ${API_URL}<br>
+                    3. Regardez la console du navigateur pour plus de détails`);
+                return false;
+            }
+        }
+        
+        // Charger les statistiques
+        async function loadStats() {
+            loadingStats.style.display = 'block';
+            statsContent.style.display = 'none';
+            
+            const connected = await testAPIConnection();
+            
+            if (!connected) {
+                loadingStats.style.display = 'none';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_URL}/api/stats`);
+                const data = await response.json();
+                
+                console.log('Stats reçues:', data);
+                
+                document.getElementById('total-tickets').textContent = data.total || 0;
+                document.getElementById('scanned-tickets').textContent = data.scanned || 0;
+                document.getElementById('duplicates').textContent = data.duplicates || 0;
+                document.getElementById('currently-inside').textContent = data.currently_inside || 0;
+                
+                const percent = data.total > 0 ? ((data.scanned / data.total) * 100).toFixed(1) : 0;
+                document.getElementById('scan-percent').textContent = `${percent}%`;
+                
+                loadingStats.style.display = 'none';
+                statsContent.style.display = 'block';
+                
+                // Charger les derniers scans
+                await loadRecentScans();
+                
+            } catch (err) {
+                console.error('Erreur chargement stats:', err);
+                showError(`Erreur lors du chargement des statistiques: ${err.message}`);
+                loadingStats.style.display = 'none';
+            }
+        }
+        
+        // Charger les derniers scans
+        async function loadRecentScans() {
+            try {
+                const response = await fetch(`${API_URL}/api/scans?limit=10`);
+                const scans = await response.json();
+                
+                console.log('Scans reçus:', scans);
+                
+                const tbody = document.getElementById('recent-scans-body');
+                
+                if (scans.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="4" style="text-align: center; color: var(--gray);">
+                                Aucun scan enregistré pour le moment
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                tbody.innerHTML = scans.map(scan => `
+                    <tr>
+                        <td><span class="code-badge">${scan.ticket_code}</span></td>
+                        <td><span class="badge badge-${scan.action === 'entry' ? 'success' : 'warning'}">
+                            ${scan.action === 'entry' ? 'ENTRÉE' : 'SORTIE'}
+                        </span></td>
+                        <td>${new Date(scan.timestamp).toLocaleString('fr-FR')}</td>
+                        <td><span class="badge badge-${scan.status === 'success' ? 'success' : scan.status === 'duplicate' ? 'warning' : 'danger'}">
+                            ${scan.status}
+                        </span></td>
+                    </tr>
+                `).join('');
+                
+            } catch (err) {
+                console.error('Erreur chargement scans:', err);
+            }
+        }
+        
+        // Navigation
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+                
+                const section = item.dataset.section;
+                document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+                document.getElementById(section).classList.add('active');
+            });
+        });
+        
+        // Actualiser
+        document.getElementById('refresh-data').addEventListener('click', () => {
+            errorContainer.innerHTML = '';
+            loadStats();
+        });
+        
+        // Test API
+        document.getElementById('test-api').addEventListener('click', async () => {
+            const connected = await testAPIConnection();
+            if (connected) {
+                showSuccess('Connexion à l\'API réussie !');
+            }
+        });
+        
+        // Importer tickets
+        document.getElementById('import-tickets').addEventListener('click', async () => {
+            if (!apiConnected) {
+                showError('API non connectée. Impossible d\'importer les tickets.');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_URL}/api/import-tickets`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showSuccess(`✓ ${result.imported} tickets importés avec succès !`);
+                    loadStats();
+                } else {
+                    showError('Erreur lors de l\'import des tickets.');
+                }
+            } catch (err) {
+                showError(`Erreur: ${err.message}`);
+            }
+        });
+        
+        // Export CSV
+        document.getElementById('export-scans').addEventListener('click', () => {
+            window.open(`${API_URL}/api/export/csv`, '_blank');
+        });
+        
+        document.getElementById('export-data').addEventListener('click', () => {
+            window.open(`${API_URL}/api/export/csv`, '_blank');
+        });
+        
+        // Initialisation
+        loadStats();
+        
+        // Auto-refresh toutes les 30 secondes
+        setInterval(() => {
+            if (apiConnected && document.querySelector('.section.active')?.id === 'overview') {
+                loadStats();
+            }
+        }, 30000);
     </script>
 </body>
 </html>

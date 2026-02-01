@@ -39,7 +39,6 @@
             position: relative;
         }
         
-        /* Effet de grille cyberpunk en arrière-plan */
         body::before {
             content: '';
             position: fixed;
@@ -81,7 +80,6 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            text-shadow: 0 0 30px rgba(0, 255, 136, 0.5);
             animation: pulse 3s ease-in-out infinite;
         }
         
@@ -97,7 +95,21 @@
             letter-spacing: 2px;
         }
         
-        /* Zone de scan */
+        .status-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--danger);
+            box-shadow: 0 0 10px currentColor;
+        }
+        
+        .status-indicator.online {
+            background: var(--primary);
+        }
+        
         .scan-area {
             background: linear-gradient(135deg, rgba(0, 255, 136, 0.1), rgba(0, 204, 255, 0.1));
             border: 2px solid var(--primary);
@@ -109,22 +121,6 @@
             overflow: hidden;
         }
         
-        .scan-area::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(0, 255, 136, 0.1) 0%, transparent 70%);
-            animation: rotate 10s linear infinite;
-        }
-        
-        @keyframes rotate {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-        
         #video-container {
             position: relative;
             width: 100%;
@@ -133,12 +129,21 @@
             border-radius: 15px;
             overflow: hidden;
             margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         #qr-video {
             width: 100%;
             height: 100%;
             object-fit: cover;
+        }
+        
+        .camera-placeholder {
+            color: var(--text-secondary);
+            text-align: center;
+            padding: 20px;
         }
         
         .scan-overlay {
@@ -151,29 +156,11 @@
             border: 3px solid var(--primary);
             border-radius: 10px;
             pointer-events: none;
+            display: none;
         }
         
-        .scan-overlay::before,
-        .scan-overlay::after {
-            content: '';
-            position: absolute;
-            width: 30px;
-            height: 30px;
-            border: 4px solid var(--primary);
-        }
-        
-        .scan-overlay::before {
-            top: -4px;
-            left: -4px;
-            border-right: none;
-            border-bottom: none;
-        }
-        
-        .scan-overlay::after {
-            bottom: -4px;
-            right: -4px;
-            border-left: none;
-            border-top: none;
+        .scan-overlay.active {
+            display: block;
         }
         
         .scan-line {
@@ -190,7 +177,6 @@
             100% { top: 100%; }
         }
         
-        /* Boutons */
         .btn {
             width: 100%;
             padding: 18px;
@@ -208,19 +194,9 @@
             margin-bottom: 15px;
         }
         
-        .btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-            transition: left 0.5s ease;
-        }
-        
-        .btn:hover::before {
-            left: 100%;
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
         
         .btn-primary {
@@ -229,7 +205,7 @@
             box-shadow: 0 5px 20px rgba(0, 255, 136, 0.4);
         }
         
-        .btn-primary:hover {
+        .btn-primary:hover:not(:disabled) {
             transform: translateY(-3px);
             box-shadow: 0 8px 25px rgba(0, 255, 136, 0.6);
         }
@@ -240,13 +216,6 @@
             box-shadow: 0 5px 20px rgba(255, 0, 102, 0.4);
         }
         
-        .btn-warning {
-            background: linear-gradient(135deg, var(--warning), #ff8800);
-            color: var(--bg-darker);
-            box-shadow: 0 5px 20px rgba(255, 170, 0, 0.4);
-        }
-        
-        /* Input manuel */
         #manual-input {
             width: 100%;
             padding: 15px;
@@ -266,7 +235,6 @@
             color: var(--text-secondary);
         }
         
-        /* Résultat du scan */
         .result {
             padding: 25px;
             border-radius: 15px;
@@ -275,7 +243,6 @@
             text-align: center;
             display: none;
             animation: slideIn 0.5s ease;
-            position: relative;
         }
         
         @keyframes slideIn {
@@ -322,7 +289,6 @@
             letter-spacing: 3px;
         }
         
-        /* Statistiques */
         .stats {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -357,7 +323,6 @@
             display: none !important;
         }
         
-        /* Toggle button spécial */
         .toggle-container {
             display: flex;
             gap: 10px;
@@ -384,19 +349,33 @@
             color: var(--bg-darker);
             box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
         }
+        
+        .debug-info {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--text-secondary);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
+            <div class="status-indicator" id="status-indicator"></div>
             <h1>⚡ SCAN ⚡</h1>
             <p class="subtitle">Contrôle d'accès Concert</p>
         </header>
         
         <div class="scan-area">
             <div id="video-container">
-                <video id="qr-video" playsinline></video>
-                <div class="scan-overlay">
+                <div class="camera-placeholder" id="camera-placeholder">
+                    📷 Cliquez sur "Démarrer le Scan" pour activer la caméra
+                </div>
+                <video id="qr-video" playsinline style="display: none;"></video>
+                <div class="scan-overlay" id="scan-overlay">
                     <div class="scan-line"></div>
                 </div>
             </div>
@@ -437,51 +416,437 @@
                 <div class="stat-label">Invalides</div>
             </div>
         </div>
+        
+        <div class="debug-info" id="debug-info">
+            Status: Initialisation...
+        </div>
     </div>
     
     <!-- QR Code Scanner Library -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     
     <script>
-        const API_URL = window.location.origin;
+        // Configuration - DÉTECTION AUTOMATIQUE DE L'URL
+        const API_URL = window.location.origin; // Utilise l'URL actuelle
+        
+        console.log('API URL:', API_URL);
+        
+        // État de l'application
         let scanner = null;
-
-        // --- FONCTION DE SCAN ---
-        async function handleValidation(code) {
+        let scannerRunning = false;
+        let currentAction = 'entry';
+        let stats = {
+            entries: 0,
+            exits: 0,
+            duplicates: 0,
+            invalids: 0
+        };
+        
+        // Éléments DOM
+        const startBtn = document.getElementById('start-scan');
+        const stopBtn = document.getElementById('stop-scan');
+        const resultDiv = document.getElementById('result');
+        const manualInput = document.getElementById('manual-input');
+        const manualValidateBtn = document.getElementById('manual-validate');
+        const toggleContainer = document.getElementById('toggle-container');
+        const toggleBtns = document.querySelectorAll('.toggle-btn');
+        const statusIndicator = document.getElementById('status-indicator');
+        const debugInfo = document.getElementById('debug-info');
+        const videoElement = document.getElementById('qr-video');
+        const cameraPlaceholder = document.getElementById('camera-placeholder');
+        const scanOverlay = document.getElementById('scan-overlay');
+        
+        // Fonction de debug
+        function updateDebug(message) {
+            console.log(message);
+            debugInfo.textContent = `Status: ${message}`;
+        }
+        
+        // Test de connexion API
+        async function testAPIConnection() {
             try {
-                const response = await fetch(`${API_URL}/api/scan`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ code: code, action: 'entry', scanner_id: "Terminal_1" })
+                updateDebug('Test de connexion à l\'API...');
+                const response = await fetch(`${API_URL}/api/stats`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
                 });
-                const result = await response.json();
                 
-                if (result.success) {
-                    alert("✅ VALIDE : " + code);
+                if (response.ok) {
+                    statusIndicator.classList.add('online');
+                    updateDebug('✓ Connecté à l\'API');
+                    return true;
                 } else {
-                    alert("❌ REFUSÉ : " + (result.error || "Déjà scanné"));
+                    updateDebug(`⚠ API répond mais erreur: ${response.status}`);
+                    return false;
                 }
-            } catch (e) {
-                alert("⚠️ Erreur réseau (Vérifie ta connexion)");
+            } catch (err) {
+                console.error('Erreur connexion API:', err);
+                updateDebug(`✗ Erreur API: ${err.message}`);
+                statusIndicator.classList.remove('online');
+                return false;
             }
         }
-
-        // --- BOUTONS ---
-        document.getElementById('start-scan').addEventListener('click', () => {
-            // Initialisation du scanner sur l'élément 'qr-video'
-            scanner = new Html5QrcodeScanner("video-container", { fps: 10, qrbox: 250 });
-            scanner.render((text) => {
-                scanner.clear(); // Arrête après un scan réussi
-                handleValidation(text);
+        
+        // Initialisation
+        async function init() {
+            updateDebug('Initialisation...');
+            
+            // Test connexion API
+            const apiOk = await testAPIConnection();
+            
+            if (!apiOk) {
+                showResult('warning', 'Mode Hors Ligne', 
+                    'Impossible de se connecter à l\'API. Les scans seront stockés localement.');
+            }
+            
+            // Charger les stats depuis l'API ou localStorage
+            await loadStats();
+            updateStatsDisplay();
+            
+            updateDebug('✓ Prêt');
+        }
+        
+        // Charger les statistiques
+        async function loadStats() {
+            try {
+                const response = await fetch(`${API_URL}/api/stats`);
+                if (response.ok) {
+                    const data = await response.json();
+                    stats.entries = data.scanned || 0;
+                    stats.duplicates = data.duplicates || 0;
+                    stats.invalids = 0; // Calculé localement
+                }
+            } catch (err) {
+                console.log('Stats non disponibles depuis l\'API, utilisation du cache local');
+                const cached = localStorage.getItem('scanner_stats');
+                if (cached) {
+                    stats = JSON.parse(cached);
+                }
+            }
+        }
+        
+        // Démarrage du scanner
+        startBtn.addEventListener('click', async () => {
+            try {
+                updateDebug('Démarrage de la caméra...');
+                
+                // Vérifier les permissions
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('Votre navigateur ne supporte pas l\'accès à la caméra');
+                }
+                
+                scanner = new Html5Qrcode("qr-video");
+                
+                const config = { 
+                    fps: 10,
+                    qrbox: { width: 250, height: 250 },
+                    aspectRatio: 1.0
+                };
+                
+                await scanner.start(
+                    { facingMode: "environment" },
+                    config,
+                    onScanSuccess,
+                    onScanError
+                );
+                
+                scannerRunning = true;
+                startBtn.classList.add('hidden');
+                stopBtn.classList.remove('hidden');
+                toggleContainer.classList.remove('hidden');
+                cameraPlaceholder.style.display = 'none';
+                videoElement.style.display = 'block';
+                scanOverlay.classList.add('active');
+                
+                updateDebug('✓ Caméra active');
+                
+            } catch (err) {
+                console.error('Erreur caméra:', err);
+                let errorMsg = err.message;
+                
+                if (err.name === 'NotAllowedError') {
+                    errorMsg = 'Autorisation caméra refusée. Vérifiez les paramètres de votre navigateur.';
+                } else if (err.name === 'NotFoundError') {
+                    errorMsg = 'Aucune caméra trouvée sur cet appareil.';
+                } else if (err.name === 'NotReadableError') {
+                    errorMsg = 'La caméra est déjà utilisée par une autre application.';
+                }
+                
+                showResult('error', 'Erreur Caméra', errorMsg);
+                updateDebug(`✗ ${errorMsg}`);
+            }
+        });
+        
+        // Arrêt du scanner
+        stopBtn.addEventListener('click', async () => {
+            if (scanner && scannerRunning) {
+                await scanner.stop();
+                scannerRunning = false;
+                startBtn.classList.remove('hidden');
+                stopBtn.classList.add('hidden');
+                videoElement.style.display = 'none';
+                cameraPlaceholder.style.display = 'block';
+                scanOverlay.classList.remove('active');
+                updateDebug('Caméra arrêtée');
+            }
+        });
+        
+        // Gestion du scan
+        function onScanSuccess(decodedText) {
+            updateDebug(`QR scanné: ${decodedText}`);
+            validateTicket(decodedText);
+        }
+        
+        function onScanError(error) {
+            // Ignorer les erreurs de scan continues (normal)
+        }
+        
+        // Validation manuelle
+        manualValidateBtn.addEventListener('click', () => {
+            const code = manualInput.value.trim().toUpperCase();
+            if (code) {
+                updateDebug(`Validation manuelle: ${code}`);
+                validateTicket(code);
+                manualInput.value = '';
+            }
+        });
+        
+        manualInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                manualValidateBtn.click();
+            }
+        });
+        
+        // Toggle Entrée/Sortie
+        toggleBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                toggleBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentAction = btn.dataset.action;
+                updateDebug(`Mode: ${currentAction === 'entry' ? 'Entrée' : 'Sortie'}`);
             });
-            document.getElementById('start-scan').classList.add('hidden');
-            document.getElementById('stop-scan').classList.remove('hidden');
         });
-
-        document.getElementById('manual-validate').addEventListener('click', () => {
-            const code = document.getElementById('manual-input').value;
-            if(code) handleValidation(code);
-        });
+        
+        // Validation du ticket
+        async function validateTicket(code) {
+            updateDebug(`Validation: ${code}`);
+            
+            // Format attendu: A-1234-XXXXX
+            const ticketRegex = /^[A-H]-\d{4}-[A-Z]{5}$/;
+            
+            if (!ticketRegex.test(code)) {
+                showResult('error', 'Format invalide', `Le code "${code}" n'est pas au bon format.`);
+                stats.invalids++;
+                updateStatsDisplay();
+                saveStats();
+                playSound('error');
+                return;
+            }
+            
+            // Envoyer à l'API
+            try {
+                updateDebug('Envoi à l\'API...');
+                
+                const response = await fetch(`${API_URL}/api/scan`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        code: code,
+                        action: currentAction,
+                        scanner_id: 'mobile-scanner',
+                        timestamp: new Date().toISOString()
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    // Succès
+                    const now = new Date().toLocaleTimeString('fr-FR');
+                    
+                    if (currentAction === 'entry') {
+                        showResult('success', '✓ ENTRÉE AUTORISÉE', 
+                            `<div class="ticket-details">
+                                <div class="ticket-code">${code}</div>
+                                Heure d'entrée: ${now}
+                            </div>`
+                        );
+                        stats.entries++;
+                    } else {
+                        showResult('success', '✓ SORTIE ENREGISTRÉE', 
+                            `<div class="ticket-details">
+                                <div class="ticket-code">${code}</div>
+                                Heure de sortie: ${now}
+                            </div>`
+                        );
+                        stats.exits++;
+                    }
+                    
+                    playSound('success');
+                    updateDebug('✓ Scan enregistré');
+                    
+                } else if (result.duplicate) {
+                    // Duplication
+                    showResult('warning', '⚠ DUPLICATION DÉTECTÉE!', 
+                        `<div class="ticket-details">
+                            <div class="ticket-code">${code}</div>
+                            Ce ticket a déjà été scanné.
+                        </div>`
+                    );
+                    stats.duplicates++;
+                    playSound('warning');
+                    updateDebug('⚠ Duplicata');
+                    
+                } else {
+                    // Erreur
+                    showResult('error', 'TICKET INVALIDE', 
+                        `<div class="ticket-details">
+                            <div class="ticket-code">${code}</div>
+                            ${result.error || 'Ticket non trouvé ou annulé'}
+                        </div>`
+                    );
+                    stats.invalids++;
+                    playSound('error');
+                    updateDebug(`✗ ${result.error}`);
+                }
+                
+                updateStatsDisplay();
+                saveStats();
+                
+            } catch (err) {
+                console.error('Erreur API:', err);
+                updateDebug(`✗ Erreur: ${err.message}`);
+                
+                // Mode hors ligne - sauvegarder localement
+                showResult('warning', 'Mode Hors Ligne', 
+                    `Scan enregistré localement. Sera synchronisé quand l'API sera accessible.<br>
+                    <div class="ticket-code">${code}</div>`
+                );
+                
+                // Sauvegarder dans localStorage pour synchro ultérieure
+                saveOfflineScan(code, currentAction);
+                
+                if (currentAction === 'entry') {
+                    stats.entries++;
+                } else {
+                    stats.exits++;
+                }
+                
+                updateStatsDisplay();
+                saveStats();
+                playSound('warning');
+            }
+        }
+        
+        // Sauvegarder un scan hors ligne
+        function saveOfflineScan(code, action) {
+            const offlineScans = JSON.parse(localStorage.getItem('offline_scans') || '[]');
+            offlineScans.push({
+                code: code,
+                action: action,
+                timestamp: new Date().toISOString()
+            });
+            localStorage.setItem('offline_scans', JSON.stringify(offlineScans));
+            updateDebug(`Scan hors ligne sauvegardé (${offlineScans.length} en attente)`);
+        }
+        
+        // Affichage du résultat
+        function showResult(type, title, message) {
+            resultDiv.className = `result ${type}`;
+            resultDiv.innerHTML = `<strong>${title}</strong><br>${message}`;
+            resultDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                resultDiv.style.display = 'none';
+            }, 5000);
+        }
+        
+        // Sons
+        function playSound(type) {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                if (type === 'success') {
+                    oscillator.frequency.value = 800;
+                    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                    oscillator.start();
+                    oscillator.stop(audioContext.currentTime + 0.1);
+                } else if (type === 'error') {
+                    oscillator.frequency.value = 200;
+                    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                    oscillator.start();
+                    oscillator.stop(audioContext.currentTime + 0.3);
+                } else if (type === 'warning') {
+                    oscillator.frequency.value = 500;
+                    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                    oscillator.start();
+                    oscillator.stop(audioContext.currentTime + 0.2);
+                }
+            } catch (err) {
+                console.log('Son non disponible:', err);
+            }
+        }
+        
+        // Mise à jour des statistiques
+        function updateStatsDisplay() {
+            document.getElementById('stat-entries').textContent = stats.entries;
+            document.getElementById('stat-exits').textContent = stats.exits;
+            document.getElementById('stat-duplicates').textContent = stats.duplicates;
+            document.getElementById('stat-invalids').textContent = stats.invalids;
+        }
+        
+        function saveStats() {
+            localStorage.setItem('scanner_stats', JSON.stringify(stats));
+        }
+        
+        // Initialisation au chargement
+        init();
+        
+        // Service Worker pour PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(err => {
+                console.log('Service Worker registration failed:', err);
+            });
+        }
+        
+        // Synchronisation périodique des scans hors ligne
+        setInterval(async () => {
+            const offlineScans = JSON.parse(localStorage.getItem('offline_scans') || '[]');
+            if (offlineScans.length > 0) {
+                updateDebug(`Tentative de synchro (${offlineScans.length} scans en attente)...`);
+                
+                for (let i = 0; i < offlineScans.length; i++) {
+                    try {
+                        const scan = offlineScans[i];
+                        const response = await fetch(`${API_URL}/api/scan`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(scan)
+                        });
+                        
+                        if (response.ok) {
+                            offlineScans.splice(i, 1);
+                            i--;
+                            updateDebug(`✓ Scan synchronisé (${offlineScans.length} restants)`);
+                        }
+                    } catch (err) {
+                        // Continuer avec les autres
+                    }
+                }
+                
+                localStorage.setItem('offline_scans', JSON.stringify(offlineScans));
+            }
+        }, 30000); // Toutes les 30 secondes
     </script>
 </body>
 </html>
