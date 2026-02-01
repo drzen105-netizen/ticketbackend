@@ -219,6 +219,7 @@
         let scanner = null;
         let currentMode = 'entry';
         let stats = { entries: 0, exits: 0, duplicates: 0, invalids: 0 };
+        let isProcessing = false; // VERROU pour éviter les doublons
         
         // Éléments
         const startBtn = document.getElementById('start-camera');
@@ -254,12 +255,10 @@
                 
                 scanner = new Html5Qrcode("reader");
                 
-                // CONFIGURATION OPTIMISÉE pour la détection
                 const config = {
                     fps: 10,
                     qrbox: { width: 250, height: 250 },
                     aspectRatio: 1.0,
-                    // Paramètres avancés pour meilleure détection
                     experimentalFeatures: {
                         useBarCodeDetectorIfSupported: true
                     }
@@ -276,8 +275,6 @@
                 stopBtn.classList.remove('hidden');
                 modeToggle.classList.remove('hidden');
                 document.getElementById('camera-status').innerHTML = '<span style="color: #00ff88;">✓ Active</span>';
-                
-                console.log('Scanner démarré avec succès');
                 
             } catch (err) {
                 console.error('Erreur caméra:', err);
@@ -300,37 +297,51 @@
         });
         
         // Callback quand QR détecté
-        function onScanSuccess(decodedText, decodedResult) {
-            console.log('QR détecté:', decodedText);
+        async function onScanSuccess(decodedText) {
+            // SI DÉJÀ EN TRAIN DE TRAITER, ON IGNORE
+            if (isProcessing) return;
             
-            // Vibration si supporté
+            isProcessing = true; // On verrouille
+            
+            // On met le scanner en pause visuelle
+            if (scanner) {
+                try { scanner.pause(true); } catch(e) {}
+            }
+
+            // Vibration
             if (navigator.vibrate) {
                 navigator.vibrate(200);
             }
             
-            validateTicket(decodedText);
+            await validateTicket(decodedText);
+
+            // On attend 2 secondes avant de réactiver pour éviter les rafales
+            setTimeout(() => {
+                isProcessing = false;
+                if (scanner) {
+                    try { scanner.resume(); } catch(e) {}
+                }
+            }, 2000);
         }
         
-        // Callback sur erreur de scan (normal, continu)
         function onScanFailure(error) {
-            // Ne rien faire, c'est normal de ne pas détecter continuellement
+            // Normal
         }
         
-        // Toggle mode Entrée/Sortie
+        // Toggle mode
         modeButtons.forEach(btn => {
             btn.addEventListener('click', () => {
                 modeButtons.forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 currentMode = btn.dataset.mode;
                 document.getElementById('scan-mode').textContent = currentMode === 'entry' ? 'ENTRÉE' : 'SORTIE';
-                console.log('Mode changé:', currentMode);
             });
         });
         
         // Validation manuelle
         validateBtn.addEventListener('click', () => {
             const code = manualInput.value.trim().toUpperCase();
-            if (code) {
+            if (code && !isProcessing) {
                 validateTicket(code);
                 manualInput.value = '';
             }
@@ -342,8 +353,6 @@
         
         // Valider un ticket
         async function validateTicket(code) {
-            console.log('Validation:', code, 'Mode:', currentMode);
-            
             // Vérifier format
             if (!/^[A-H]-\d{4}-[A-Z]{5}$/.test(code)) {
                 showResult('error', `❌ Format invalide<br>${code}`);
@@ -365,7 +374,6 @@
                 });
                 
                 const result = await response.json();
-                console.log('Résultat API:', result);
                 
                 if (result.success) {
                     if (currentMode === 'entry') {
@@ -404,9 +412,10 @@
             resultDiv.innerHTML = message;
             resultDiv.classList.remove('hidden');
             
+            // On cache après 4 secondes
             setTimeout(() => {
                 resultDiv.classList.add('hidden');
-            }, 5000);
+            }, 4000);
         }
         
         // Sons
@@ -415,11 +424,9 @@
                 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 const oscillator = audioContext.createOscillator();
                 const gainNode = audioContext.createGain();
-                
                 oscillator.connect(gainNode);
                 gainNode.connect(audioContext.destination);
-                
-                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
                 
                 if (type === 'success') {
                     oscillator.frequency.value = 800;
@@ -434,30 +441,23 @@
                     oscillator.start();
                     oscillator.stop(audioContext.currentTime + 0.2);
                 }
-            } catch (err) {
-                console.log('Son non disponible');
-            }
+            } catch (err) { }
         }
         
-        // Mettre à jour les stats
         function updateStats() {
             document.getElementById('stat-entries').textContent = stats.entries;
             document.getElementById('stat-exits').textContent = stats.exits;
             document.getElementById('stat-duplicates').textContent = stats.duplicates;
             document.getElementById('stat-invalids').textContent = stats.invalids;
-            
-            // Sauvegarder en local
             localStorage.setItem('scanner-stats', JSON.stringify(stats));
         }
         
-        // Charger stats sauvegardées
         const savedStats = localStorage.getItem('scanner-stats');
         if (savedStats) {
             stats = JSON.parse(savedStats);
             updateStats();
         }
         
-        // Init
         testAPI();
     </script>
 </body>
