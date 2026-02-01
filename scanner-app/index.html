@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scanner Test - Concert</title>
+    <title>Scanner Concert</title>
     <style>
         * {
             margin: 0;
@@ -42,19 +42,11 @@
             font-size: 14px;
         }
         
-        #video-container {
-            position: relative;
+        #reader {
             width: 100%;
-            background: #000;
             border-radius: 10px;
             overflow: hidden;
             margin-bottom: 20px;
-        }
-        
-        #qr-video {
-            width: 100%;
-            height: auto;
-            display: block;
         }
         
         .controls {
@@ -87,6 +79,17 @@
             color: white;
         }
         
+        .btn-toggle {
+            background: #2d2d44;
+            color: white;
+            border: 2px solid #00ff88;
+        }
+        
+        .btn-toggle.active {
+            background: #00ff88;
+            color: #1a1a2e;
+        }
+        
         input {
             padding: 15px;
             font-size: 16px;
@@ -95,6 +98,7 @@
             background: #2d2d44;
             color: white;
             text-align: center;
+            text-transform: uppercase;
         }
         
         .result {
@@ -115,8 +119,39 @@
             border: 2px solid #ff4444;
         }
         
+        .result.warning {
+            background: rgba(255, 170, 0, 0.2);
+            border: 2px solid #ffaa00;
+        }
+        
         .hidden {
             display: none;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .stat-card {
+            background: #2d2d44;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            color: #00ff88;
+            font-weight: bold;
+        }
+        
+        .stat-label {
+            font-size: 0.8rem;
+            color: #aaa;
+            margin-top: 5px;
         }
     </style>
 </head>
@@ -125,25 +160,52 @@
         <h1>🎫 Scanner Concert</h1>
         
         <div class="status">
-            <div class="status-item">📍 <strong>API URL:</strong> <span id="api-url"></span></div>
-            <div class="status-item">🔌 <strong>Status API:</strong> <span id="api-status">Test...</span></div>
-            <div class="status-item">📊 <strong>Tickets en DB:</strong> <span id="ticket-count">-</span></div>
+            <div class="status-item">📍 <strong>API:</strong> <span id="api-url"></span></div>
+            <div class="status-item">🔌 <strong>Status:</strong> <span id="api-status">Test...</span></div>
+            <div class="status-item">📊 <strong>Tickets:</strong> <span id="ticket-count">-</span></div>
             <div class="status-item">📷 <strong>Caméra:</strong> <span id="camera-status">Inactive</span></div>
+            <div class="status-item">🎯 <strong>Mode:</strong> <span id="scan-mode">ENTRÉE</span></div>
         </div>
         
-        <div id="video-container" class="hidden">
-            <video id="qr-video" autoplay playsinline></video>
-        </div>
+        <!-- Zone de scan QR -->
+        <div id="reader"></div>
         
         <div class="controls">
-            <button id="start-camera" class="btn-primary">📷 Activer la Caméra</button>
+            <button id="start-camera" class="btn-primary">📷 Démarrer Scan</button>
             <button id="stop-camera" class="btn-danger hidden">❌ Arrêter</button>
+            
+            <!-- Toggle Entrée/Sortie -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;" class="hidden" id="mode-toggle">
+                <button class="btn-toggle active" data-mode="entry">ENTRÉE</button>
+                <button class="btn-toggle" data-mode="exit">SORTIE</button>
+            </div>
+            
+            <div style="text-align: center; color: #888; margin: 10px 0;">— OU —</div>
             
             <input type="text" id="manual-code" placeholder="A-1234-XXXXX" maxlength="15">
             <button id="validate-code" class="btn-primary">✓ Valider Code</button>
         </div>
         
         <div id="result" class="result hidden"></div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="stat-entries">0</div>
+                <div class="stat-label">Entrées</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-exits">0</div>
+                <div class="stat-label">Sorties</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-duplicates">0</div>
+                <div class="stat-label">Duplicatas</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-invalids">0</div>
+                <div class="stat-label">Invalides</div>
+            </div>
+        </div>
     </div>
     
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -153,21 +215,19 @@
         const API_URL = window.location.origin;
         document.getElementById('api-url').textContent = API_URL;
         
-        // Variables
+        // État
         let scanner = null;
-        let stream = null;
+        let currentMode = 'entry';
+        let stats = { entries: 0, exits: 0, duplicates: 0, invalids: 0 };
         
         // Éléments
-        const videoContainer = document.getElementById('video-container');
-        const video = document.getElementById('qr-video');
         const startBtn = document.getElementById('start-camera');
         const stopBtn = document.getElementById('stop-camera');
         const manualInput = document.getElementById('manual-code');
         const validateBtn = document.getElementById('validate-code');
         const resultDiv = document.getElementById('result');
-        const apiStatus = document.getElementById('api-status');
-        const ticketCount = document.getElementById('ticket-count');
-        const cameraStatus = document.getElementById('camera-status');
+        const modeToggle = document.getElementById('mode-toggle');
+        const modeButtons = document.querySelectorAll('.btn-toggle');
         
         // Test API au chargement
         async function testAPI() {
@@ -175,89 +235,97 @@
                 const response = await fetch(`${API_URL}/api/stats`);
                 const data = await response.json();
                 
-                apiStatus.innerHTML = '<span style="color: #00ff88;">✓ Connecté</span>';
-                ticketCount.textContent = data.total || 0;
+                document.getElementById('api-status').innerHTML = '<span style="color: #00ff88;">✓ Connecté</span>';
+                document.getElementById('ticket-count').textContent = data.total || 0;
                 
                 if (data.total === 0) {
-                    showResult('error', '⚠️ Aucun ticket dans la base ! Importez-les d\'abord.');
+                    showResult('error', '⚠️ Aucun ticket ! Importez-les via /api/import-tickets');
                 }
             } catch (err) {
-                apiStatus.innerHTML = '<span style="color: #ff4444;">✗ Déconnecté</span>';
-                showResult('error', `Erreur: ${err.message}`);
+                document.getElementById('api-status').innerHTML = '<span style="color: #ff4444;">✗ Erreur</span>';
+                showResult('error', `Erreur API: ${err.message}`);
             }
         }
         
-        // Démarrer la caméra
+        // Démarrer le scan
         startBtn.addEventListener('click', async () => {
             try {
-                cameraStatus.textContent = 'Demande d\'accès...';
+                document.getElementById('camera-status').textContent = 'Démarrage...';
                 
-                // Méthode 1: getUserMedia direct
-                stream = await navigator.mediaDevices.getUserMedia({
-                    video: { 
-                        facingMode: "environment",
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
+                scanner = new Html5Qrcode("reader");
+                
+                // CONFIGURATION OPTIMISÉE pour la détection
+                const config = {
+                    fps: 10,
+                    qrbox: { width: 250, height: 250 },
+                    aspectRatio: 1.0,
+                    // Paramètres avancés pour meilleure détection
+                    experimentalFeatures: {
+                        useBarCodeDetectorIfSupported: true
                     }
-                });
+                };
                 
-                video.srcObject = stream;
-                await video.play();
-                
-                videoContainer.classList.remove('hidden');
-                startBtn.classList.add('hidden');
-                stopBtn.classList.remove('hidden');
-                cameraStatus.innerHTML = '<span style="color: #00ff88;">✓ Active</span>';
-                
-                // Démarrer le scanner QR
-                scanner = new Html5Qrcode("qr-video");
                 await scanner.start(
                     { facingMode: "environment" },
-                    { fps: 10, qrbox: 250 },
+                    config,
                     onScanSuccess,
-                    () => {} // Ignore les erreurs de scan
+                    onScanFailure
                 );
+                
+                startBtn.classList.add('hidden');
+                stopBtn.classList.remove('hidden');
+                modeToggle.classList.remove('hidden');
+                document.getElementById('camera-status').innerHTML = '<span style="color: #00ff88;">✓ Active</span>';
+                
+                console.log('Scanner démarré avec succès');
                 
             } catch (err) {
                 console.error('Erreur caméra:', err);
-                cameraStatus.innerHTML = '<span style="color: #ff4444;">✗ Erreur</span>';
-                
-                let message = 'Erreur caméra: ';
-                if (err.name === 'NotAllowedError') {
-                    message += 'Autorisation refusée. Vérifiez les paramètres.';
-                } else if (err.name === 'NotFoundError') {
-                    message += 'Aucune caméra trouvée.';
-                } else {
-                    message += err.message;
-                }
-                
-                showResult('error', message);
+                document.getElementById('camera-status').innerHTML = '<span style="color: #ff4444;">✗ Erreur</span>';
+                showResult('error', `Erreur caméra: ${err.message}`);
             }
         });
         
-        // Arrêter la caméra
+        // Arrêter le scan
         stopBtn.addEventListener('click', async () => {
             if (scanner) {
                 await scanner.stop();
                 scanner = null;
             }
             
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-                stream = null;
-            }
-            
-            video.srcObject = null;
-            videoContainer.classList.add('hidden');
-            stopBtn.classList.add('hidden');
             startBtn.classList.remove('hidden');
-            cameraStatus.textContent = 'Inactive';
+            stopBtn.classList.add('hidden');
+            modeToggle.classList.add('hidden');
+            document.getElementById('camera-status').textContent = 'Inactive';
         });
         
-        // Scan réussi
-        function onScanSuccess(code) {
-            validateTicket(code);
+        // Callback quand QR détecté
+        function onScanSuccess(decodedText, decodedResult) {
+            console.log('QR détecté:', decodedText);
+            
+            // Vibration si supporté
+            if (navigator.vibrate) {
+                navigator.vibrate(200);
+            }
+            
+            validateTicket(decodedText);
         }
+        
+        // Callback sur erreur de scan (normal, continu)
+        function onScanFailure(error) {
+            // Ne rien faire, c'est normal de ne pas détecter continuellement
+        }
+        
+        // Toggle mode Entrée/Sortie
+        modeButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                modeButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentMode = btn.dataset.mode;
+                document.getElementById('scan-mode').textContent = currentMode === 'entry' ? 'ENTRÉE' : 'SORTIE';
+                console.log('Mode changé:', currentMode);
+            });
+        });
         
         // Validation manuelle
         validateBtn.addEventListener('click', () => {
@@ -274,11 +342,14 @@
         
         // Valider un ticket
         async function validateTicket(code) {
-            console.log('Validation:', code);
+            console.log('Validation:', code, 'Mode:', currentMode);
             
             // Vérifier format
             if (!/^[A-H]-\d{4}-[A-Z]{5}$/.test(code)) {
-                showResult('error', `Format invalide: ${code}`);
+                showResult('error', `❌ Format invalide<br>${code}`);
+                stats.invalids++;
+                updateStats();
+                playSound('error');
                 return;
             }
             
@@ -288,23 +359,42 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         code: code,
-                        action: 'entry',
-                        scanner_id: 'test-scanner'
+                        action: currentMode,
+                        scanner_id: 'mobile-scanner'
                     })
                 });
                 
                 const result = await response.json();
+                console.log('Résultat API:', result);
                 
                 if (result.success) {
-                    showResult('success', `✓ ENTRÉE AUTORISÉE<br>${code}`);
+                    if (currentMode === 'entry') {
+                        showResult('success', `✓ ENTRÉE AUTORISÉE<br><strong>${code}</strong>`);
+                        stats.entries++;
+                    } else {
+                        showResult('success', `✓ SORTIE ENREGISTRÉE<br><strong>${code}</strong>`);
+                        stats.exits++;
+                    }
+                    playSound('success');
+                    
                 } else if (result.duplicate) {
-                    showResult('error', `⚠️ DUPLICATA<br>${code}`);
+                    showResult('warning', `⚠️ DUPLICATA DÉTECTÉ<br><strong>${code}</strong><br>Déjà scanné`);
+                    stats.duplicates++;
+                    playSound('warning');
+                    
                 } else {
-                    showResult('error', `✗ ${result.error || 'Ticket invalide'}<br>${code}`);
+                    showResult('error', `❌ ${result.error || 'Ticket invalide'}<br><strong>${code}</strong>`);
+                    stats.invalids++;
+                    playSound('error');
                 }
                 
+                updateStats();
+                
             } catch (err) {
-                showResult('error', `Erreur API: ${err.message}`);
+                console.error('Erreur API:', err);
+                showResult('error', `❌ Erreur API<br>${err.message}`);
+                stats.invalids++;
+                updateStats();
             }
         }
         
@@ -317,6 +407,54 @@
             setTimeout(() => {
                 resultDiv.classList.add('hidden');
             }, 5000);
+        }
+        
+        // Sons
+        function playSound(type) {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                
+                if (type === 'success') {
+                    oscillator.frequency.value = 800;
+                    oscillator.start();
+                    oscillator.stop(audioContext.currentTime + 0.1);
+                } else if (type === 'error') {
+                    oscillator.frequency.value = 200;
+                    oscillator.start();
+                    oscillator.stop(audioContext.currentTime + 0.3);
+                } else if (type === 'warning') {
+                    oscillator.frequency.value = 500;
+                    oscillator.start();
+                    oscillator.stop(audioContext.currentTime + 0.2);
+                }
+            } catch (err) {
+                console.log('Son non disponible');
+            }
+        }
+        
+        // Mettre à jour les stats
+        function updateStats() {
+            document.getElementById('stat-entries').textContent = stats.entries;
+            document.getElementById('stat-exits').textContent = stats.exits;
+            document.getElementById('stat-duplicates').textContent = stats.duplicates;
+            document.getElementById('stat-invalids').textContent = stats.invalids;
+            
+            // Sauvegarder en local
+            localStorage.setItem('scanner-stats', JSON.stringify(stats));
+        }
+        
+        // Charger stats sauvegardées
+        const savedStats = localStorage.getItem('scanner-stats');
+        if (savedStats) {
+            stats = JSON.parse(savedStats);
+            updateStats();
         }
         
         // Init

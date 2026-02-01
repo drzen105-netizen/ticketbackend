@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scanner Test - Concert</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a2e;
+            color: white;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #00ff88;
+        }
+        
+        .status {
+            background: #2d2d44;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #00ff88;
+        }
+        
+        .status-item {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        
+        #video-container {
+            position: relative;
+            width: 100%;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        
+        #qr-video {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        button {
+            padding: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #00ff88;
+            color: #1a1a2e;
+        }
+        
+        .btn-primary:hover {
+            background: #00cc6a;
+        }
+        
+        .btn-danger {
+            background: #ff4444;
+            color: white;
+        }
+        
+        input {
+            padding: 15px;
+            font-size: 16px;
+            border: 2px solid #00ff88;
+            border-radius: 8px;
+            background: #2d2d44;
+            color: white;
+            text-align: center;
+        }
+        
+        .result {
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .result.success {
+            background: rgba(0, 255, 136, 0.2);
+            border: 2px solid #00ff88;
+        }
+        
+        .result.error {
+            background: rgba(255, 68, 68, 0.2);
+            border: 2px solid #ff4444;
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎫 Scanner Concert</h1>
+        
+        <div class="status">
+            <div class="status-item">📍 <strong>API URL:</strong> <span id="api-url"></span></div>
+            <div class="status-item">🔌 <strong>Status API:</strong> <span id="api-status">Test...</span></div>
+            <div class="status-item">📊 <strong>Tickets en DB:</strong> <span id="ticket-count">-</span></div>
+            <div class="status-item">📷 <strong>Caméra:</strong> <span id="camera-status">Inactive</span></div>
+        </div>
+        
+        <div id="video-container" class="hidden">
+            <video id="qr-video" autoplay playsinline></video>
+        </div>
+        
+        <div class="controls">
+            <button id="start-camera" class="btn-primary">📷 Activer la Caméra</button>
+            <button id="stop-camera" class="btn-danger hidden">❌ Arrêter</button>
+            
+            <input type="text" id="manual-code" placeholder="A-1234-XXXXX" maxlength="15">
+            <button id="validate-code" class="btn-primary">✓ Valider Code</button>
+        </div>
+        
+        <div id="result" class="result hidden"></div>
+    </div>
+    
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    
+    <script>
+        // Configuration
+        const API_URL = window.location.origin;
+        document.getElementById('api-url').textContent = API_URL;
+        
+        // Variables
+        let scanner = null;
+        let stream = null;
+        
+        // Éléments
+        const videoContainer = document.getElementById('video-container');
+        const video = document.getElementById('qr-video');
+        const startBtn = document.getElementById('start-camera');
+        const stopBtn = document.getElementById('stop-camera');
+        const manualInput = document.getElementById('manual-code');
+        const validateBtn = document.getElementById('validate-code');
+        const resultDiv = document.getElementById('result');
+        const apiStatus = document.getElementById('api-status');
+        const ticketCount = document.getElementById('ticket-count');
+        const cameraStatus = document.getElementById('camera-status');
+        
+        // Test API au chargement
+        async function testAPI() {
+            try {
+                const response = await fetch(`${API_URL}/api/stats`);
+                const data = await response.json();
+                
+                apiStatus.innerHTML = '<span style="color: #00ff88;">✓ Connecté</span>';
+                ticketCount.textContent = data.total || 0;
+                
+                if (data.total === 0) {
+                    showResult('error', '⚠️ Aucun ticket dans la base ! Importez-les d\'abord.');
+                }
+            } catch (err) {
+                apiStatus.innerHTML = '<span style="color: #ff4444;">✗ Déconnecté</span>';
+                showResult('error', `Erreur: ${err.message}`);
+            }
+        }
+        
+        // Démarrer la caméra
+        startBtn.addEventListener('click', async () => {
+            try {
+                cameraStatus.textContent = 'Demande d\'accès...';
+                
+                // Méthode 1: getUserMedia direct
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        facingMode: "environment",
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                });
+                
+                video.srcObject = stream;
+                await video.play();
+                
+                videoContainer.classList.remove('hidden');
+                startBtn.classList.add('hidden');
+                stopBtn.classList.remove('hidden');
+                cameraStatus.innerHTML = '<span style="color: #00ff88;">✓ Active</span>';
+                
+                // Démarrer le scanner QR
+                scanner = new Html5Qrcode("qr-video");
+                await scanner.start(
+                    { facingMode: "environment" },
+                    { fps: 10, qrbox: 250 },
+                    onScanSuccess,
+                    () => {} // Ignore les erreurs de scan
+                );
+                
+            } catch (err) {
+                console.error('Erreur caméra:', err);
+                cameraStatus.innerHTML = '<span style="color: #ff4444;">✗ Erreur</span>';
+                
+                let message = 'Erreur caméra: ';
+                if (err.name === 'NotAllowedError') {
+                    message += 'Autorisation refusée. Vérifiez les paramètres.';
+                } else if (err.name === 'NotFoundError') {
+                    message += 'Aucune caméra trouvée.';
+                } else {
+                    message += err.message;
+                }
+                
+                showResult('error', message);
+            }
+        });
+        
+        // Arrêter la caméra
+        stopBtn.addEventListener('click', async () => {
+            if (scanner) {
+                await scanner.stop();
+                scanner = null;
+            }
+            
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            
+            video.srcObject = null;
+            videoContainer.classList.add('hidden');
+            stopBtn.classList.add('hidden');
+            startBtn.classList.remove('hidden');
+            cameraStatus.textContent = 'Inactive';
+        });
+        
+        // Scan réussi
+        function onScanSuccess(code) {
+            validateTicket(code);
+        }
+        
+        // Validation manuelle
+        validateBtn.addEventListener('click', () => {
+            const code = manualInput.value.trim().toUpperCase();
+            if (code) {
+                validateTicket(code);
+                manualInput.value = '';
+            }
+        });
+        
+        manualInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') validateBtn.click();
+        });
+        
+        // Valider un ticket
+        async function validateTicket(code) {
+            console.log('Validation:', code);
+            
+            // Vérifier format
+            if (!/^[A-H]-\d{4}-[A-Z]{5}$/.test(code)) {
+                showResult('error', `Format invalide: ${code}`);
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_URL}/api/scan`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        code: code,
+                        action: 'entry',
+                        scanner_id: 'test-scanner'
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showResult('success', `✓ ENTRÉE AUTORISÉE<br>${code}`);
+                } else if (result.duplicate) {
+                    showResult('error', `⚠️ DUPLICATA<br>${code}`);
+                } else {
+                    showResult('error', `✗ ${result.error || 'Ticket invalide'}<br>${code}`);
+                }
+                
+            } catch (err) {
+                showResult('error', `Erreur API: ${err.message}`);
+            }
+        }
+        
+        // Afficher résultat
+        function showResult(type, message) {
+            resultDiv.className = `result ${type}`;
+            resultDiv.innerHTML = message;
+            resultDiv.classList.remove('hidden');
+            
+            setTimeout(() => {
+                resultDiv.classList.add('hidden');
+            }, 5000);
+        }
+        
+        // Init
+        testAPI();
+    </script>
+</body>
+</html>
