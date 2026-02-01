@@ -219,23 +219,47 @@
         let stats = { entries: 0, exits: 0, duplicates: 0, invalids: 0 };
         let isProcessing = false; 
 
-        // Fonction pour flasher le background
+        // 1. SYNCHRONISATION AVEC LE SERVEUR (Dashboard)
+        async function refreshStats() {
+            try {
+                const response = await fetch(`${API_URL}/api/stats`);
+                const data = await response.json();
+                
+                // On met à jour nos stats locales avec les vrais chiffres de la DB
+                stats.entries = data.entries || 0;
+                stats.exits = data.exits || 0;
+                stats.duplicates = data.duplicates || 0;
+                
+                // Mise à jour de l'affichage HTML
+                document.getElementById('stat-entries').textContent = stats.entries;
+                document.getElementById('stat-exits').textContent = stats.exits;
+                document.getElementById('stat-duplicates').textContent = stats.duplicates;
+                
+                if(document.getElementById('ticket-count')) {
+                    document.getElementById('ticket-count').textContent = data.total || 0;
+                }
+
+                console.log("Stats synchronisées avec le serveur");
+            } catch (err) {
+                console.error("Erreur de synchro stats:", err);
+            }
+        }
+
+        // 2. FLASH VISUEL
         function flashBackground(type) {
             const body = document.body;
-            const originalBg = "#1a1a2e"; // Ton bleu foncé d'origine
+            const originalBg = "#1a1a2e"; 
             
             let flashColor = "";
             switch(type) {
-                case 'success': flashColor = "#00ff88"; break; // Vert
-                case 'warning': flashColor = "#ffaa00"; break; // Orange
-                case 'error':   flashColor = "#ff4444"; break; // Rouge
+                case 'success': flashColor = "#00ff88"; break; 
+                case 'warning': flashColor = "#ffaa00"; break; 
+                case 'error':   flashColor = "#ff4444"; break; 
             }
 
-            // Applique le flash et change la couleur du texte pour le contraste
             body.style.backgroundColor = flashColor;
-            body.style.color = "#000"; // Texte noir pour que ça ressorte sur le flash
+            body.style.color = "#000"; 
             
-            // Retour à la normale après 2 secondes
             setTimeout(() => {
                 body.style.backgroundColor = originalBg;
                 body.style.color = "white";
@@ -247,7 +271,6 @@
             try {
                 scanner = new Html5Qrcode("reader");
                 const config = { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 };
-                
                 await scanner.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure);
                 
                 document.getElementById('start-camera').classList.add('hidden');
@@ -279,17 +302,18 @@
             setTimeout(() => {
                 isProcessing = false;
                 if (scanner) { try { scanner.resume(); } catch(e) {} }
-            }, 2500); // 2.5s de battement pour être tranquille
+            }, 2500); 
         }
 
         function onScanFailure(error) { /* Silencieux */ }
 
         async function validateTicket(code) {
+            // Validation format local
             if (!/^[A-H]-\d{4}-[A-Z]{5}$/.test(code)) {
                 showResult('error', `❌ FORMAT INVALIDE<br>${code}`);
                 flashBackground('error');
                 stats.invalids++;
-                updateStats();
+                document.getElementById('stat-invalids').textContent = stats.invalids;
                 playSound('error');
                 return;
             }
@@ -307,20 +331,22 @@
                     const msg = currentMode === 'entry' ? "✓ ENTRÉE ACCEPTEE" : "✓ SORTIE VALIDÉE";
                     showResult('success', `${msg}<br><strong>${code}</strong>`);
                     flashBackground('success');
-                    currentMode === 'entry' ? stats.entries++ : stats.exits++;
                     playSound('success');
                 } else if (result.duplicate) {
                     showResult('warning', `⚠️ DÉJÀ SCANNÉ<br><strong>${code}</strong>`);
                     flashBackground('warning');
-                    stats.duplicates++;
                     playSound('warning');
                 } else {
                     showResult('error', `❌ REFUSÉ: ${result.error || 'Inconnu'}<br><strong>${code}</strong>`);
                     flashBackground('error');
                     stats.invalids++;
+                    document.getElementById('stat-invalids').textContent = stats.invalids;
                     playSound('error');
                 }
-                updateStats();
+
+                // APRES CHAQUE SCAN : On demande les vrais chiffres au serveur
+                await refreshStats();
+
             } catch (err) {
                 showResult('error', `❌ ERREUR RÉSEAU`);
                 flashBackground('error');
@@ -344,21 +370,18 @@
                 osc.connect(gain); gain.connect(ctx.destination);
                 gain.gain.setValueAtTime(0.1, ctx.currentTime);
                 if (type === 'success') { osc.frequency.value = 800; osc.start(); osc.stop(ctx.currentTime + 0.1); }
+                else if (type === 'warning') { osc.frequency.value = 400; osc.start(); osc.stop(ctx.currentTime + 0.2); }
                 else { osc.frequency.value = 200; osc.start(); osc.stop(ctx.currentTime + 0.3); }
             } catch (e) {}
         }
 
-        function updateStats() {
-            document.getElementById('stat-entries').textContent = stats.entries;
-            document.getElementById('stat-exits').textContent = stats.exits;
-            document.getElementById('stat-duplicates').textContent = stats.duplicates;
-            document.getElementById('stat-invalids').textContent = stats.invalids;
-            localStorage.setItem('scanner-stats', JSON.stringify(stats));
-        }
+        // --- INITIALISATION & TIMERS ---
+        
+        // Charger les stats au démarrage
+        refreshStats();
 
-        // Init
-        const savedStats = localStorage.getItem('scanner-stats');
-        if (savedStats) { stats = JSON.parse(savedStats); updateStats(); }
+        // Synchronisation automatique toutes les 30 secondes (pour voir les scans des autres)
+        setInterval(refreshStats, 30000);
         
         // Toggle modes buttons
         document.querySelectorAll('.btn-toggle').forEach(btn => {
