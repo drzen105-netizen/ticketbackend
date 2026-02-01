@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0f0f23">
+    <title>Scan Concert - Contrôle d'Accès</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Space+Mono:wght@400;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --primary: #00ff88;
+            --danger: #ff0066;
+            --warning: #ffaa00;
+            --bg-dark: #0f0f23;
+            --bg-darker: #05050f;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0c0;
+        }
+        
+        body {
+            font-family: 'Space Mono', monospace;
+            background: var(--bg-darker);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+        
+        /* Effet de grille cyberpunk en arrière-plan */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 255, 136, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 136, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            padding: 30px 0;
+            border-bottom: 2px solid var(--primary);
+            margin-bottom: 30px;
+            position: relative;
+        }
+        
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            background: linear-gradient(135deg, var(--primary), #00ccff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 30px rgba(0, 255, 136, 0.5);
+            animation: pulse 3s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+        
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-top: 10px;
+            letter-spacing: 2px;
+        }
+        
+        /* Zone de scan */
+        .scan-area {
+            background: linear-gradient(135deg, rgba(0, 255, 136, 0.1), rgba(0, 204, 255, 0.1));
+            border: 2px solid var(--primary);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .scan-area::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(0, 255, 136, 0.1) 0%, transparent 70%);
+            animation: rotate 10s linear infinite;
+        }
+        
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        #video-container {
+            position: relative;
+            width: 100%;
+            height: 300px;
+            background: var(--bg-dark);
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        
+        #qr-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .scan-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 200px;
+            border: 3px solid var(--primary);
+            border-radius: 10px;
+            pointer-events: none;
+        }
+        
+        .scan-overlay::before,
+        .scan-overlay::after {
+            content: '';
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border: 4px solid var(--primary);
+        }
+        
+        .scan-overlay::before {
+            top: -4px;
+            left: -4px;
+            border-right: none;
+            border-bottom: none;
+        }
+        
+        .scan-overlay::after {
+            bottom: -4px;
+            right: -4px;
+            border-left: none;
+            border-top: none;
+        }
+        
+        .scan-line {
+            position: absolute;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--primary), transparent);
+            animation: scan 2s linear infinite;
+            box-shadow: 0 0 10px var(--primary);
+        }
+        
+        @keyframes scan {
+            0% { top: 0; }
+            100% { top: 100%; }
+        }
+        
+        /* Boutons */
+        .btn {
+            width: 100%;
+            padding: 18px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+        
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+        
+        .btn:hover::before {
+            left: 100%;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), #00ccff);
+            color: var(--bg-darker);
+            box-shadow: 0 5px 20px rgba(0, 255, 136, 0.4);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 255, 136, 0.6);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger), #cc0055);
+            color: white;
+            box-shadow: 0 5px 20px rgba(255, 0, 102, 0.4);
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, var(--warning), #ff8800);
+            color: var(--bg-darker);
+            box-shadow: 0 5px 20px rgba(255, 170, 0, 0.4);
+        }
+        
+        /* Input manuel */
+        #manual-input {
+            width: 100%;
+            padding: 15px;
+            font-family: 'Space Mono', monospace;
+            font-size: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid var(--primary);
+            border-radius: 10px;
+            color: var(--text-primary);
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 15px;
+        }
+        
+        #manual-input::placeholder {
+            color: var(--text-secondary);
+        }
+        
+        /* Résultat du scan */
+        .result {
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            font-weight: bold;
+            text-align: center;
+            display: none;
+            animation: slideIn 0.5s ease;
+            position: relative;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .result.success {
+            background: linear-gradient(135deg, rgba(0, 255, 136, 0.2), rgba(0, 204, 255, 0.2));
+            border: 2px solid var(--primary);
+            color: var(--primary);
+        }
+        
+        .result.error {
+            background: linear-gradient(135deg, rgba(255, 0, 102, 0.2), rgba(204, 0, 85, 0.2));
+            border: 2px solid var(--danger);
+            color: var(--danger);
+        }
+        
+        .result.warning {
+            background: linear-gradient(135deg, rgba(255, 170, 0, 0.2), rgba(255, 136, 0, 0.2));
+            border: 2px solid var(--warning);
+            color: var(--warning);
+        }
+        
+        .ticket-details {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid currentColor;
+            font-size: 0.9rem;
+            font-weight: normal;
+        }
+        
+        .ticket-code {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            margin: 10px 0;
+            letter-spacing: 3px;
+        }
+        
+        /* Statistiques */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 30px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, rgba(0, 255, 136, 0.1), rgba(0, 204, 255, 0.1));
+            border: 1px solid var(--primary);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: var(--primary);
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        /* Toggle button spécial */
+        .toggle-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .toggle-btn {
+            flex: 1;
+            padding: 15px;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border: 2px solid var(--primary);
+            background: transparent;
+            color: var(--text-secondary);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .toggle-btn.active {
+            background: var(--primary);
+            color: var(--bg-darker);
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⚡ SCAN ⚡</h1>
+            <p class="subtitle">Contrôle d'accès Concert</p>
+        </header>
+        
+        <div class="scan-area">
+            <div id="video-container">
+                <video id="qr-video" playsinline></video>
+                <div class="scan-overlay">
+                    <div class="scan-line"></div>
+                </div>
+            </div>
+            
+            <button id="start-scan" class="btn btn-primary">Démarrer le Scan</button>
+            <button id="stop-scan" class="btn btn-danger hidden">Arrêter le Scan</button>
+            
+            <div style="margin: 20px 0; text-align: center; color: var(--text-secondary);">
+                — OU —
+            </div>
+            
+            <input type="text" id="manual-input" placeholder="ENTRER CODE MANUELLEMENT">
+            <button id="manual-validate" class="btn btn-primary">Valider le Code</button>
+        </div>
+        
+        <div id="result" class="result"></div>
+        
+        <div class="toggle-container hidden" id="toggle-container">
+            <button class="toggle-btn active" data-action="entry">ENTRÉE</button>
+            <button class="toggle-btn" data-action="exit">SORTIE</button>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value" id="stat-entries">0</div>
+                <div class="stat-label">Entrées</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-exits">0</div>
+                <div class="stat-label">Sorties</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-duplicates">0</div>
+                <div class="stat-label">Duplicatas</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-invalids">0</div>
+                <div class="stat-label">Invalides</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- QR Code Scanner Library -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    
+    <script>
+        // Configuration
+        const API_URL = 'https://votre-api.com'; // À remplacer par votre URL d'API
+        
+        // État de l'application
+        let scanner = null;
+        let scannerRunning = false;
+        let currentAction = 'entry'; // 'entry' ou 'exit'
+        let stats = {
+            entries: 0,
+            exits: 0,
+            duplicates: 0,
+            invalids: 0
+        };
+        
+        // Éléments DOM
+        const startBtn = document.getElementById('start-scan');
+        const stopBtn = document.getElementById('stop-scan');
+        const resultDiv = document.getElementById('result');
+        const manualInput = document.getElementById('manual-input');
+        const manualValidateBtn = document.getElementById('manual-validate');
+        const toggleContainer = document.getElementById('toggle-container');
+        const toggleBtns = document.querySelectorAll('.toggle-btn');
+        
+        // Base de données locale (simulée - à remplacer par appels API)
+        let ticketsDB = [];
+        
+        // Initialisation
+        async function init() {
+            // Charger la base de données (simulé)
+            // En production, faire un fetch vers votre API
+            loadLocalDatabase();
+            updateStats();
+        }
+        
+        function loadLocalDatabase() {
+            // Simulation - en production, récupérer depuis l'API
+            const stored = localStorage.getItem('ticketsDB');
+            if (stored) {
+                ticketsDB = JSON.parse(stored);
+            }
+        }
+        
+        function saveLocalDatabase() {
+            localStorage.setItem('ticketsDB', JSON.stringify(ticketsDB));
+        }
+        
+        // Démarrage du scanner
+        startBtn.addEventListener('click', async () => {
+            try {
+                scanner = new Html5Qrcode("qr-video");
+                const config = { 
+                    fps: 10,
+                    qrbox: { width: 250, height: 250 }
+                };
+                
+                await scanner.start(
+                    { facingMode: "environment" },
+                    config,
+                    onScanSuccess,
+                    onScanError
+                );
+                
+                scannerRunning = true;
+                startBtn.classList.add('hidden');
+                stopBtn.classList.remove('hidden');
+                toggleContainer.classList.remove('hidden');
+                
+            } catch (err) {
+                showResult('error', 'Erreur d\'accès à la caméra', err.message);
+            }
+        });
+        
+        // Arrêt du scanner
+        stopBtn.addEventListener('click', async () => {
+            if (scanner && scannerRunning) {
+                await scanner.stop();
+                scannerRunning = false;
+                startBtn.classList.remove('hidden');
+                stopBtn.classList.add('hidden');
+            }
+        });
+        
+        // Gestion du scan
+        function onScanSuccess(decodedText) {
+            validateTicket(decodedText);
+        }
+        
+        function onScanError(error) {
+            // Ignorer les erreurs de scan continues
+        }
+        
+        // Validation manuelle
+        manualValidateBtn.addEventListener('click', () => {
+            const code = manualInput.value.trim().toUpperCase();
+            if (code) {
+                validateTicket(code);
+                manualInput.value = '';
+            }
+        });
+        
+        manualInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                manualValidateBtn.click();
+            }
+        });
+        
+        // Toggle Entrée/Sortie
+        toggleBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                toggleBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentAction = btn.dataset.action;
+            });
+        });
+        
+        // Validation du ticket
+        async function validateTicket(code) {
+            // Format attendu: A-1234-XXXXX
+            const ticketRegex = /^[A-H]-\d{4}-[A-Z]{5}$/;
+            
+            if (!ticketRegex.test(code)) {
+                showResult('error', 'Format invalide', `Le code "${code}" n'est pas au bon format.`);
+                stats.invalids++;
+                updateStats();
+                return;
+            }
+            
+            // Vérifier dans la base de données locale
+            const ticket = ticketsDB.find(t => t.code === code);
+            
+            if (!ticket) {
+                showResult('error', 'Ticket inconnu', `Le code "${code}" n'existe pas dans la base.`);
+                stats.invalids++;
+                updateStats();
+                playSound('error');
+                return;
+            }
+            
+            if (ticket.status !== 'valid') {
+                showResult('error', 'Ticket invalide', `Ce ticket a été annulé ou désactivé.`);
+                stats.invalids++;
+                updateStats();
+                playSound('error');
+                return;
+            }
+            
+            // Vérification de duplication
+            const now = new Date().toISOString();
+            
+            if (currentAction === 'entry') {
+                if (ticket.scanned && !ticket.exited) {
+                    showResult('warning', 'Duplication détectée!', 
+                        `Ce ticket a déjà été scanné.<br>
+                        <div class="ticket-details">
+                            <div class="ticket-code">${code}</div>
+                            Premier scan: ${new Date(ticket.first_scan_time).toLocaleString('fr-FR')}<br>
+                            Nombre de scans: ${ticket.scan_count}
+                        </div>`
+                    );
+                    stats.duplicates++;
+                    updateStats();
+                    playSound('warning');
+                    return;
+                }
+                
+                // Enregistrer l'entrée
+                if (!ticket.scanned) {
+                    ticket.first_scan_time = now;
+                }
+                ticket.scanned = true;
+                ticket.exited = false;
+                ticket.last_scan_time = now;
+                ticket.scan_count++;
+                
+                showResult('success', '✓ ENTRÉE AUTORISÉE', 
+                    `<div class="ticket-details">
+                        <div class="ticket-code">${code}</div>
+                        Série: ${ticket.prefix}<br>
+                        Heure d'entrée: ${new Date(now).toLocaleTimeString('fr-FR')}
+                    </div>`
+                );
+                stats.entries++;
+                playSound('success');
+                
+            } else {
+                // Sortie
+                if (!ticket.scanned || ticket.exited) {
+                    showResult('warning', 'Ticket non entré', 
+                        `Ce ticket n'a pas été scanné à l'entrée ou a déjà été utilisé pour une sortie.`
+                    );
+                    stats.invalids++;
+                    updateStats();
+                    playSound('warning');
+                    return;
+                }
+                
+                ticket.exited = true;
+                ticket.exit_time = now;
+                
+                showResult('success', '✓ SORTIE ENREGISTRÉE', 
+                    `<div class="ticket-details">
+                        <div class="ticket-code">${code}</div>
+                        Heure de sortie: ${new Date(now).toLocaleTimeString('fr-FR')}
+                    </div>`
+                );
+                stats.exits++;
+                playSound('success');
+            }
+            
+            // Sauvegarder les modifications
+            saveLocalDatabase();
+            updateStats();
+            
+            // Synchroniser avec l'API (simulé)
+            syncToAPI(ticket);
+        }
+        
+        // Affichage du résultat
+        function showResult(type, title, message) {
+            resultDiv.className = `result ${type}`;
+            resultDiv.innerHTML = `<strong>${title}</strong><br>${message}`;
+            resultDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                resultDiv.style.display = 'none';
+            }, 5000);
+        }
+        
+        // Sons
+        function playSound(type) {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            if (type === 'success') {
+                oscillator.frequency.value = 800;
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.1);
+            } else if (type === 'error') {
+                oscillator.frequency.value = 200;
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.3);
+            } else if (type === 'warning') {
+                oscillator.frequency.value = 500;
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.2);
+            }
+        }
+        
+        // Mise à jour des statistiques
+        function updateStats() {
+            document.getElementById('stat-entries').textContent = stats.entries;
+            document.getElementById('stat-exits').textContent = stats.exits;
+            document.getElementById('stat-duplicates').textContent = stats.duplicates;
+            document.getElementById('stat-invalids').textContent = stats.invalids;
+        }
+        
+        // Synchronisation avec l'API
+        async function syncToAPI(ticket) {
+            // En production, envoyer à votre backend
+            try {
+                // await fetch(`${API_URL}/scan`, {
+                //     method: 'POST',
+                //     headers: { 'Content-Type': 'application/json' },
+                //     body: JSON.stringify({
+                //         ticket: ticket,
+                //         action: currentAction,
+                //         timestamp: new Date().toISOString()
+                //     })
+                // });
+                console.log('Sync to API:', ticket);
+            } catch (error) {
+                console.error('Erreur de synchronisation:', error);
+            }
+        }
+        
+        // Initialisation au chargement
+        init();
+        
+        // Service Worker pour PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(err => {
+                console.log('Service Worker registration failed:', err);
+            });
+        }
+    </script>
+</body>
+</html>
