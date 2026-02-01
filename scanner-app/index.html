@@ -443,96 +443,45 @@
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     
     <script>
-        // --- CONFIGURATION ---
-        const API_URL = window.location.origin; // Détecte automatiquement l'adresse de Render
-        let html5QrcodeScanner;
-        let currentAction = 'entry';
-        let stats = { entries: 0, exits: 0, duplicates: 0, invalids: 0 };
+        const API_URL = window.location.origin;
+        let scanner = null;
 
-        // --- INITIALISATION DU SCANNER ---
-        function init() {
-            // On force l'utilisation de la caméra arrière avec "environment"
-            html5QrcodeScanner = new Html5QrcodeScanner(
-                "reader", 
-                { 
-                    fps: 10, 
-                    qrbox: { width: 250, height: 250 },
-                    aspectRatio: 1.0
-                }
-            );
-            html5QrcodeScanner.render(onScanSuccess, onScanFailure);
-        }
-
-        // --- LOGIQUE DE SCAN ---
-        async function onScanSuccess(decodedText) {
-            console.log(`Code détecté : ${decodedText}`);
-            
+        // --- FONCTION DE SCAN ---
+        async function handleValidation(code) {
             try {
-                // Envoi au serveur (ton server.js)
                 const response = await fetch(`${API_URL}/api/scan`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        code: decodedText,
-                        action: currentAction,
-                        scanner_id: "Terminal_1"
-                    })
+                    body: JSON.stringify({ code: code, action: 'entry', scanner_id: "Terminal_1" })
                 });
-
                 const result = await response.json();
-
+                
                 if (result.success) {
-                    showStatus(currentAction === 'entry' ? 'VALIDÉ' : 'SORTIE OK', 'success');
-                    if(currentAction === 'entry') stats.entries++; else stats.exits++;
-                } else if (result.duplicate) {
-                    showStatus('DÉJÀ SCANNÉ !', 'warning');
-                    stats.duplicates++;
+                    alert("✅ VALIDE : " + code);
                 } else {
-                    showStatus('TICKET INCONNU', 'danger');
-                    stats.invalids++;
+                    alert("❌ REFUSÉ : " + (result.error || "Déjà scanné"));
                 }
-                
-                updateStats();
-                
-            } catch (error) {
-                showStatus('ERREUR RÉSEAU', 'danger');
-                console.error("Erreur API:", error);
+            } catch (e) {
+                alert("⚠️ Erreur réseau (Vérifie ta connexion)");
             }
         }
 
-        function onScanFailure(error) {
-            // On ne met rien ici pour éviter de spammer la console
-        }
-
-        // --- MISE À JOUR DE L'INTERFACE ---
-        function showStatus(message, type) {
-            const statusEl = document.getElementById('status-display');
-            const msgEl = statusEl.querySelector('.status-message');
-            
-            statusEl.className = `status-display ${type}`;
-            msgEl.textContent = message;
-            
-            // Feedback tactile pour mobile
-            if (navigator.vibrate) navigator.vibrate(100);
-        }
-
-        function updateStats() {
-            document.getElementById('stat-entries').textContent = stats.entries;
-            document.getElementById('stat-exits').textContent = stats.exits;
-            document.getElementById('stat-duplicates').textContent = stats.duplicates;
-            document.getElementById('stat-invalids').textContent = stats.invalids;
-        }
-
-        // Changement d'action (Entrée/Sortie)
-        document.querySelectorAll('.tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                tab.classList.add('active');
-                currentAction = tab.dataset.action;
+        // --- BOUTONS ---
+        document.getElementById('start-scan').addEventListener('click', () => {
+            // Initialisation du scanner sur l'élément 'qr-video'
+            scanner = new Html5QrcodeScanner("video-container", { fps: 10, qrbox: 250 });
+            scanner.render((text) => {
+                scanner.clear(); // Arrête après un scan réussi
+                handleValidation(text);
             });
+            document.getElementById('start-scan').classList.add('hidden');
+            document.getElementById('stop-scan').classList.remove('hidden');
         });
 
-        init();
+        document.getElementById('manual-validate').addEventListener('click', () => {
+            const code = document.getElementById('manual-input').value;
+            if(code) handleValidation(code);
+        });
     </script>
 </body>
 </html>
